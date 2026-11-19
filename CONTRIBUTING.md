@@ -54,7 +54,8 @@ Everything is plain Swift and AppKit compiled with `swiftc`. There is no Xcode p
 | `Sources/Demo.swift` | The README demo GIFs (`--demo-gif`), drawn offscreen |
 | `scripts/sign-update.swift` | Signs a release zip in CI |
 | `charas/chars.py`, `charas/pix.py` | Generator for the six built-in high-res character packs |
-| `build.sh` | Build, font download, app bundle, ad-hoc signing |
+| `build.sh` | Build, font download, app bundle, ad-hoc signing. It installs to `~/Applications` unless you pass `APP=…`, so use `APP=/tmp/Dot.app ./build.sh` while you have a release build installed |
+| `install.sh` | The one-line installer (latest signed release, no Gatekeeper prompt) |
 | `selftest.py` | The self-test |
 
 Adding an agent usually needs no Swift at all: its hooks call `--report` and `--signal` (see [docs/agents.md](docs/agents.md)). A built-in source is a class conforming to `SessionSource` in `Sessions.swift`, added to `makeSources()`. A new terminal for click-to-jump is one entry in `TAB_PICKERS` in `Terminal.swift`.

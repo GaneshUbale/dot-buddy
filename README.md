@@ -61,7 +61,15 @@ Clicking the pet marks everything as seen. A finished session keeps its "done" s
 
 Requires macOS 13 or later.
 
-### Build from source (recommended)
+### One line (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/doldoldol21/dot-buddy/main/install.sh | bash
+```
+
+It downloads the latest release, checks its signature and puts the app in `~/Applications`. Because the download doesn't go through a browser, macOS opens it without the Gatekeeper prompt. Run it again to update; `DOTBUDDY_CLI=1` also installs the command-line tools. Read [install.sh](install.sh) first if you like; it's short.
+
+### Build from source
 
 You need the Xcode Command Line Tools (`xcode-select --install`). Nothing else.
 
@@ -198,7 +206,7 @@ The full guide, with every motion name and the `chara.json` format, is in [CHARA
 | Bubble text uses the system font or shows boxes | The font download failed during the build. Rebuild with network access. |
 | Characters look small and simple | `python3` wasn't found at build time. Install it and rebuild. |
 | My character doesn't show up | Run `"$DOTBUDDY" --charas` to see what loaded. Check frame sizes against [CHARACTERS.md](CHARACTERS.md). |
-| "Dot Buddy can't be opened" | See the Gatekeeper steps under [Download a release](#download-a-release). |
+| "Dot Buddy can't be opened" | See the Gatekeeper steps under [Download a release](#download-a-release), or install with the [one-line installer](#one-line-recommended), which avoids the prompt. |
 | I want it gone | Quit from the menu, delete the app and `~/Library/Application Support/DotBuddy/`. Settings live in `defaults` under `io.github.doldoldol21.dot-buddy`. |
 
 ## Contributing

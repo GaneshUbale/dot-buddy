@@ -57,7 +57,15 @@
 
 macOS 13 이상이 필요해요.
 
-### 소스로 빌드하기(추천)
+### 한 줄 설치(추천)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/doldoldol21/dot-buddy/main/install.sh | bash
+```
+
+최신 릴리스를 받아 서명을 확인하고 `~/Applications` 에 넣어요. 브라우저로 받은 게 아니라서 macOS 가 '그래도 열기' 없이 바로 열어요. 다시 돌리면 업데이트되고, `DOTBUDDY_CLI=1` 을 붙이면 명령줄 도구도 깔아요. 짧은 스크립트라 [install.sh](install.sh) 를 먼저 읽어 봐도 돼요.
+
+### 소스로 빌드하기
 
 Xcode 명령줄 도구(`xcode-select --install`)만 있으면 돼요.
 
@@ -194,7 +202,7 @@ Codex CLI, Gemini CLI, Cursor, opencode, Aider 설정은 [docs/agents.md](docs/a
 | 말풍선 글자가 시스템 글꼴이거나 네모로 나와요 | 빌드 때 글꼴을 못 받았어요. 인터넷이 되는 곳에서 다시 빌드하세요. |
 | 캐릭터가 작고 단순해요 | 빌드 때 `python3` 를 못 찾았어요. 설치하고 다시 빌드하세요. |
 | 내 캐릭터가 안 보여요 | `"$DOTBUDDY" --charas` 로 불러온 목록을 보고, 칸 크기를 [CHARACTERS.ko.md](CHARACTERS.ko.md)와 맞춰 보세요. |
-| "Dot Buddy 을(를) 열 수 없습니다" | [릴리스 받기](#릴리스-받기)의 Gatekeeper 순서를 따라 하세요. |
+| "Dot Buddy 을(를) 열 수 없습니다" | [릴리스 받기](#릴리스-받기)의 Gatekeeper 순서를 따라 하거나, 이 확인이 뜨지 않는 [한 줄 설치](#한-줄-설치추천)로 깔아요. |
 | 지우고 싶어요 | 메뉴에서 종료하고, 앱과 `~/Library/Application Support/DotBuddy/` 를 지우세요. 설정은 `defaults` 의 `io.github.doldoldol21.dot-buddy` 에 있어요. |
 
 ## 기여하기
