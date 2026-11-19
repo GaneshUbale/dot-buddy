@@ -21,7 +21,7 @@ Dot Buddy lives on your desktop, walks along window edges and widgets, and watch
 
 - Native Swift app, zero third-party dependencies, builds from source in about a minute
 - Reads session files only; it never touches your agent's hooks or settings
-- No network connections
+- No network connections, except an opt-in daily update check against GitHub
 - English and Korean UI
 
 ## What it reacts to
@@ -89,6 +89,12 @@ Release builds are ad-hoc signed and **not notarized**, so macOS blocks the firs
 
 On macOS 14 and earlier, Control-click the app and choose **Open** instead. If you'd rather not bypass Gatekeeper, build from source; locally built apps aren't quarantined.
 
+## Updates
+
+Release builds update themselves. Turn on **Update Automatically** in the right-click menu (it's offered on first launch): once a day the pet checks GitHub, and when a new version is out it downloads it, checks its Ed25519 signature and bundle, and swaps it in while no agent is working, then says hello from the new version. **Check for Updates…** does the same on demand. The previous version goes to the Trash.
+
+Apps built from source never replace themselves; they just tell you a new version exists (`git pull && ./build.sh`).
+
 ## Quick start
 
 1. Launch Dot Buddy. The pet drops onto your desktop.
@@ -112,7 +118,7 @@ Other agents report their state through the CLI that ships inside the app (see [
 ### Privacy
 
 - **Read-only.** It never writes to `~/.claude`, never edits hooks, settings, `CLAUDE.md` or MCP config, and never adds anything to your agent's context.
-- **No network.** The app makes no network connections. Only `build.sh` downloads the fonts.
+- **No network unless you allow updates.** On first launch it asks whether to check for updates. If you say yes, it looks at this repo's latest release on github.com once a day and sends nothing but its version (User-Agent). Otherwise it never connects anywhere. `build.sh` downloads the fonts at build time.
 - **What shows on screen.** Bubbles show session names and terminal tab titles, never file paths, commands or your questions. If you share your screen, those names are visible; set Chattiness to Off or quit the app before presenting.
 - Its own files live in `~/Library/Application Support/DotBuddy/` (characters, `tools.json`, state files written by `--report`).
 
@@ -140,7 +146,7 @@ The full guide, with every motion name and the `chara.json` format, is in [CHARA
 
 ## Configuration
 
-**Settings menu** (right-click the pet): Character, Size, Wandering (how often it visits windows), Chattiness (Chatty, Normal, Quiet, Off), Font, Bubble Text size, Language, Launch at Login, Quit.
+**Settings menu** (right-click the pet): Character, Size, Wandering (how often it visits windows), Chattiness (Chatty, Normal, Quiet, Off), Font, Bubble Text size, Language, Check for Updates…, Update Automatically, Launch at Login, Quit.
 
 **`tools.json`** (`~/Library/Application Support/DotBuddy/tools.json`) customizes each agent. Changes apply on the next read, no restart needed. Keys are tool names as passed to `--report` (`claude` for Claude Code), and `*` applies to every tool.
 

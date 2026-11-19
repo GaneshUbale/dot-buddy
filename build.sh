@@ -15,7 +15,8 @@ for a in "$@"; do case "$a" in --universal) UNIVERSAL=1 ;; *) echo "$(m "Unknown
 ti_warn() { echo; echo "[$(m warning 주의)] $*"; }
 for t in swiftc iconutil codesign lipo; do command -v "$t" >/dev/null 2>&1 || { echo "[$(m blocked 막힘)] $(m "$t not found — run: xcode-select --install" "$t 가 없다 — xcode-select --install")" >&2; exit 1; }; done
 MINOS=13.0   # SMAppService (login item) needs macOS 13 or later
-VERSION="$(tr -d ' \n' < VERSION 2>/dev/null || echo 0.0.0)"   # the version number comes from the single VERSION file
+VERSION="${DOTBUDDY_VERSION:-$(tr -d ' \n' < VERSION 2>/dev/null || echo 0.0.0)}"
+BUILD_KIND="${BUILD_KIND:-source}"   # "release" only for the zips CI publishes: those may replace themselves with a newer release   # the version number comes from the single VERSION file
 
 # executable — only when the sources are newer than the binary or a wanted chip is missing. Built into a temp file, then mv (does not overwrite the running app's executable)
 mkdir -p bin
@@ -100,6 +101,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
+  <key>DotBuddyBuild</key><string>$BUILD_KIND</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSAppleEventsUsageDescription</key><string>Used to jump to the terminal tab (Terminal, iTerm2) running a session when you click its notification.</string>

@@ -227,6 +227,15 @@ with tempfile.TemporaryDirectory() as packs:
     r = subprocess.run([BIN, "--typing-preview", tp], capture_output=True, text=True, timeout=20)
     check("타이핑 말풍선", (r.returncode, os.path.exists(tp) and os.path.getsize(tp) > 500), (0, True))
 
+# Updater: version order, and a signature that doesn't match is refused (the real key only lives in CI)
+def run_ok(*args):
+    return subprocess.run([BIN, *args], capture_output=True, timeout=20).returncode == 0
+check("update — version order", [run_ok("--version-newer", a, b) for a, b in [("0.10.0", "0.9.3"), ("0.1.1", "0.1.0"), ("0.1.0", "0.1.0"), ("v1.0", "0.9"), ("0.1", "0.1.0")]], [True, True, False, True, False])
+with tempfile.TemporaryDirectory() as td:
+    z, s = os.path.join(td, "u.zip"), os.path.join(td, "u.zip.sig")
+    open(z, "wb").write(os.urandom(4096)); open(s, "w").write("AAAA" * 22)
+    check("update — bad signature refused", subprocess.run([BIN, "--verify-update", z, s], capture_output=True, timeout=20).returncode, 1)
+
 # README demo GIFs are drawn offscreen by the app (no screen recording)
 with tempfile.TemporaryDirectory() as td:
     g = os.path.join(td, "c.gif")

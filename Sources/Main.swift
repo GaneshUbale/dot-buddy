@@ -19,6 +19,7 @@
 //                            (--signal also takes say|done|ask|work|cheer|poke [text] [--from NAME])
 //   DotBuddy --preview a.png character x pose sample sheet
 //   DotBuddy --demo-gif a.gif [hero|characters]   README demo animation, drawn offscreen
+//   DotBuddy --check-update  latest GitHub release vs this build (JSON) · --verify-update <zip> <sig> · --install-update <app path>
 import AppKit
 import CoreText
 import ServiceManagement
@@ -188,6 +189,27 @@ struct Main {
       if let d = dockEstimate(screensNow()) { print("dock-bar", Int(d.minX), Int(d.maxX), "top", Int(d.maxY), sc.floors.contains { $0.owner == "dock" } ? T("(설 수 있음)", "(can stand)") : T("(앞 창에 가려 지금은 못 섬)", "(hidden behind a window, cannot stand now)")) }
       return
     }
+    if a.count >= 2 && a[1] == "--check-update" {                                  // latest release vs this build, as JSON (talks to GitHub)
+      var j: [String: Any] = ["current": APP_VERSION, "build": BUILD_KIND]
+      switch latestRelease() {
+      case .success(let u): j["latest"] = u.version; j["newer"] = versionNewer(u.version, than: APP_VERSION); j["zip"] = u.zip.absoluteString
+      case .failure(let e): j["error"] = describe(e)
+      }
+      print(String(decoding: (try? JSONSerialization.data(withJSONObject: j, options: [.sortedKeys])) ?? Data(), as: UTF8.self))
+      exit(j["error"] == nil ? 0 : 1)
+    }
+    if a.count >= 3 && a[1] == "--install-update" {                                // download, verify and swap in the latest release at <app path> (testing; the app does this from its menu)
+      guard case .success(let u) = latestRelease() else { print("no release"); exit(1) }
+      switch installUpdate(u, appPath: a[2]) {
+      case .success(let p): print("installed \(u.version) at \(p)"); exit(0)
+      case .failure(let e): print(describe(e)); exit(1)
+      }
+    }
+    if a.count >= 4 && a[1] == "--verify-update" {                                 // --verify-update <zip> <sig file> [public key]: exit 0 if the signature is valid
+      guard let d = FileManager.default.contents(atPath: a[2]), let s = FileManager.default.contents(atPath: a[3]) else { exit(2) }
+      exit(verifyUpdate(d, sig: String(decoding: s, as: UTF8.self), key: a.count >= 5 ? a[4] : UPDATE_PUBLIC_KEY) ? 0 : 1)
+    }
+    if a.count == 4 && a[1] == "--version-newer" { exit(versionNewer(a[2], than: a[3]) ? 0 : 1) }
     if a.count >= 3 && a[1] == "--demo-gif" {                                      // README demo animation: --demo-gif <out.gif> [hero|characters]
       exit(demoGIF(a[2], scene: a.count >= 4 ? a[3] : "hero") ? 0 : 1)
     }

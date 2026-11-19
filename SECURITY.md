@@ -34,3 +34,7 @@ Neither path runs commands. Local processes running as you are already trusted a
 ## Release builds
 
 Release zips are built by GitHub Actions from a tagged commit, ad-hoc signed, and not notarized. If you'd rather not trust a downloaded binary, build from source with `./build.sh`; the build downloads only the two fonts and verifies their checksums.
+
+## Updates
+
+Release zips are signed in CI with an Ed25519 key that only exists as the repository secret `UPDATE_SIGNING_KEY` (and an offline backup held by the maintainer). The app embeds the public key (`UPDATE_PUBLIC_KEY` in `Sources/Update.swift`) and refuses any download whose signature, bundle identifier, version or code signature doesn't match. If you find a way around these checks, please report it privately.

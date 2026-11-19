@@ -42,7 +42,7 @@ jobs:
           fi
 
       - name: Build universal app
-        run: APP="$RUNNER_TEMP/Dot Buddy.app" FORCE=1 ./build.sh --universal
+        run: APP="$RUNNER_TEMP/Dot Buddy.app" FORCE=1 BUILD_KIND=release ./build.sh --universal
 
       - name: Verify the bundle
         run: |
@@ -54,11 +54,19 @@ jobs:
       - name: Zip
         run: ditto -c -k --keepParent "$RUNNER_TEMP/Dot Buddy.app" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip"
 
+      - name: Sign for the in-app updater
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          zip="Dot-Buddy-${GITHUB_REF_NAME#v}.zip"
+          swift scripts/sign-update.swift "$zip" > "$zip.sig"
+          "$RUNNER_TEMP/Dot Buddy.app/Contents/MacOS/DotBuddy" --verify-update "$zip" "$zip.sig"
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip" \
+          gh release create "$GITHUB_REF_NAME" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip.sig" \
             --title "Dot Buddy ${GITHUB_REF_NAME#v}" \
             --generate-notes \
             --verify-tag

@@ -212,6 +212,7 @@ final class Pet: NSObject, NSMenuDelegate {
       if onWindow { self.lastRide = 0; self.tick() }
     }
     poll(); refreshFloors(force: true); applyLevel()
+    startUpdateChecks()
     window.orderFrontRegardless()
     NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { _ in NSTimeZone.resetSystemTimeZone() }   // Even if the time zone changes while running (travel), time-of-day text and on-the-hour notifications follow the new time zone
     NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -1981,6 +1982,14 @@ final class Pet: NSObject, NSMenuDelegate {
     let langs: [(String, String)] = [(T("시스템 따라", "System"), ""), ("한국어", "ko"), ("English", "en")], langNow = UD.string(forKey: "lang") ?? ""
     sub(T("언어", "Language") + ": \(cur(langs, langNow))", langs.map { ($0.0, langNow == $0.1, #selector(setLang(_:)), $0.1) })
     menu.addItem(.separator())
+    if let u = availableUpdate, BUILD_KIND == "release" {
+      let it = NSMenuItem(title: T("업데이트 \(u.version) 설치", "Install Update \(u.version)"), action: #selector(installUpdateNow), keyEquivalent: ""); it.target = self; menu.addItem(it)
+    } else {
+      let it = NSMenuItem(title: T("업데이트 확인…", "Check for Updates…"), action: #selector(checkUpdatesNow), keyEquivalent: ""); it.target = self; menu.addItem(it)
+    }
+    let au = NSMenuItem(title: BUILD_KIND == "release" ? T("자동으로 업데이트", "Update Automatically") : T("새 판 나오면 알려 주기", "Tell Me About New Versions"), action: #selector(toggleAutoUpdate), keyEquivalent: "")
+    au.target = self; au.state = UD.bool(forKey: "autoUpdate") ? .on : .off; menu.addItem(au)
+    menu.addItem(.separator())
     let login = NSMenuItem(title: T("로그인할 때 켜기", "Launch at Login"), action: #selector(toggleLogin), keyEquivalent: ""); login.target = self
     login.state = SMAppService.mainApp.status == .enabled ? .on : .off; menu.addItem(login)
     menu.addItem(withTitle: T("종료", "Quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
@@ -2006,12 +2015,84 @@ final class Pet: NSObject, NSMenuDelegate {
     a.messageText = T("맥에 로그인할 때 도트 친구도 켤까요?", "Launch Dot Buddy at login?")
     a.informativeText = T("나중에 펫을 오른쪽 클릭해 바꿀 수 있어요.", "You can change this later by right-clicking the pet.")
     a.addButton(withTitle: T("켜기", "Launch at Login")); a.addButton(withTitle: T("나중에", "Not Now"))
+    let upd = NSButton(checkboxWithTitle: T("하루 한 번 새 판을 확인해 쉬는 동안 업데이트(GitHub 에만 물어봐요)", "Check for new versions once a day and update while idle (asks GitHub only)"), target: nil, action: nil)
+    upd.state = .on; upd.sizeToFit(); a.accessoryView = upd
     NSApp.activate(ignoringOtherApps: true)
     let on = a.runModal() == .alertFirstButtonReturn
+    UD.set(upd.state == .on, forKey: "autoUpdate"); if upd.state == .on { startUpdateChecks() }
     UD.set(on, forKey: "loginItem")
     guard on else { return }
     try? SMAppService.mainApp.register()
     if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+  }
+  // ---------- Updates (see Update.swift) ----------
+  var availableUpdate: UpdateInfo?, updateTimer: Timer?, updating = false
+  /// Automatic checks: a day after the last one (or a minute after launch if that's overdue), then every 6 hours look again whether a day has passed
+  func startUpdateChecks() {
+    updateTimer?.invalidate(); updateTimer = nil
+    if let from = UD.string(forKey: "updatedFrom") {                              // first launch after a self-update
+      UD.removeObject(forKey: "updatedFrom")
+      DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in guard let self else { return }; self.cheerUntil = self.now + 2; self.say(T("업데이트했어요! \(from) → \(APP_VERSION)", "Updated! \(from) → \(APP_VERSION)"), self.now) }
+    }
+    guard UD.bool(forKey: "autoUpdate") else { return }
+    let tick = { [weak self] in
+      guard let self, Date().timeIntervalSince1970 - UD.double(forKey: "lastUpdateCheck") > 23 * 3600 else { return }
+      self.checkForUpdates(manual: false)
+    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 60, execute: tick)
+    let t = Timer(timeInterval: 6 * 3600, repeats: true) { _ in tick() }; t.tolerance = 600
+    RunLoop.main.add(t, forMode: .common); updateTimer = t
+  }
+  func checkForUpdates(manual: Bool) {
+    UD.set(Date().timeIntervalSince1970, forKey: "lastUpdateCheck")
+    if manual { say(T("새 판 있나 볼게요…", "Checking for updates…"), now) }
+    DispatchQueue.global(qos: .utility).async { [weak self] in
+      let r = latestRelease()
+      DispatchQueue.main.async {
+        guard let self else { return }
+        switch r {
+        case .failure(let e): if manual { self.say(T("확인 못 했어요: ", "Couldn't check: ") + describe(e), self.now) }
+        case .success(let u):
+          guard versionNewer(u.version, than: APP_VERSION) else { if manual { self.say(T("최신 판이에요 (\(APP_VERSION))", "You're up to date (\(APP_VERSION))"), self.now) }; return }
+          let first = self.availableUpdate?.version != u.version
+          self.availableUpdate = u
+          if BUILD_KIND != "release" { if manual || first { self.say(T("새 판 \(u.version)! git pull 하고 build.sh", "\(u.version) is out! git pull && ./build.sh"), self.now) }; return }
+          if !manual && UD.bool(forKey: "autoUpdate") { self.installWhenIdle(); return }
+          if manual || first { self.say(T("새 판 \(u.version)! 오른쪽 클릭해서 설치", "\(u.version) is out! Right-click to install"), self.now) }
+        }
+      }
+    }
+  }
+  /// Automatic install waits until no agent is working or waiting on you, then swaps and relaunches
+  func installWhenIdle() {
+    guard availableUpdate != nil, !updating else { return }
+    if mood == .work || mood == .ask || showing != nil || !notices.isEmpty {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in self?.installWhenIdle() }; return
+    }
+    installUpdateNow()
+  }
+  @objc func checkUpdatesNow() { checkForUpdates(manual: true) }
+  @objc func installUpdateNow() {
+    guard let u = availableUpdate, !updating else { return }
+    updating = true
+    say(T("\(u.version) 받는 중…", "Downloading \(u.version)…"), now)
+    let from = APP_VERSION
+    DispatchQueue.global(qos: .utility).async { [weak self] in
+      let r = installUpdate(u)
+      DispatchQueue.main.async {
+        guard let self else { return }
+        self.updating = false
+        switch r {
+        case .success(let path): UD.set(from, forKey: "updatedFrom"); UD.synchronize(); relaunch(path)
+        case .failure(let e): self.availableUpdate = nil; self.say(T("업데이트 못 했어요: ", "Update failed: ") + describe(e), self.now)
+        }
+      }
+    }
+  }
+  @objc func toggleAutoUpdate() {
+    let on = !UD.bool(forKey: "autoUpdate"); UD.set(on, forKey: "autoUpdate")
+    if on { UD.set(0, forKey: "lastUpdateCheck") }
+    startUpdateChecks()
   }
   @objc func toggleLogin() {
     let s = SMAppService.mainApp, on = s.status == .enabled

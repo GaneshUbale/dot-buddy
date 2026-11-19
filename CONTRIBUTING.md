@@ -50,6 +50,9 @@ Everything is plain Swift and AppKit compiled with `swiftc`. There is no Xcode p
 | `Sources/Draw.swift` | Pixel drawing: poses, props, character effects |
 | `Sources/Charas.swift` | Built-in characters, the character pack loader, Codex pet import and export |
 | `Sources/Lang.swift` | Language selection and the `T()` helpers |
+| `Sources/Update.swift` | The self-updater: latest release lookup, Ed25519 signature check, swapping the app |
+| `Sources/Demo.swift` | The README demo GIFs (`--demo-gif`), drawn offscreen |
+| `scripts/sign-update.swift` | Signs a release zip in CI |
 | `charas/chars.py`, `charas/pix.py` | Generator for the six built-in high-res character packs |
 | `build.sh` | Build, font download, app bundle, ad-hoc signing |
 | `selftest.py` | The self-test |
@@ -81,3 +84,11 @@ Original characters are welcome. The built-in ones are drawn in code by `charas/
 - Run `python3 selftest.py` before you push.
 - Changes to what the app reads or runs (session files, transcripts, `tools.json` commands) need a note on the privacy or security impact.
 - By contributing you agree that your work is released under the [MIT License](LICENSE).
+
+## Releasing (maintainers)
+
+1. Bump `VERSION` (SemVer) and commit.
+2. Tag and push: `git tag -a v$(cat VERSION) -m "Dot Buddy $(cat VERSION)" && git push origin v$(cat VERSION)`.
+3. CI checks that the tag matches `VERSION`, builds a universal app with `BUILD_KIND=release`, signs the zip with the `UPDATE_SIGNING_KEY` secret (`scripts/sign-update.swift`) and publishes the release with `Dot-Buddy-<version>.zip` and its `.sig`. Installed release builds pick it up through the in-app updater.
+
+Never rotate the signing key casually: apps already out there only trust the public key they were built with.
