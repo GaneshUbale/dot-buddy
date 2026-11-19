@@ -2102,7 +2102,7 @@ final class Pet: NSObject, NSMenuDelegate {
   /// Automatic install waits until no agent is working or waiting on you, then swaps and relaunches
   func installWhenIdle() {
     guard availableUpdate != nil, !updating else { return }
-    if mood == .work || mood == .ask || showing != nil || !notices.isEmpty {
+    if list.contains(where: { $0.mood == .work || $0.mood == .ask }) || showing != nil || !notices.isEmpty {   // any session still working or asking (the pet's own mood shows only the most urgent one)
       DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in self?.installWhenIdle() }; return
     }
     installUpdateNow()
