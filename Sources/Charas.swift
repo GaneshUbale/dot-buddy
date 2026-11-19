@@ -227,16 +227,22 @@ func loadCharas(in dir: URL) -> [Chara] {
       let fr = m["frame"] as? [Int] ?? []                                         // Frame size [width, height]. If absent, the single idle.png is one frame
       let fw = fr.count == 2 ? fr[0] : sheet.0, fh = sheet.1
       guard fw > 0, fw <= MAX_W, fh <= MAX_H, sheet.0 % fw == 0 else { continue }
-      let idle = (fw, fh, (0..<fh).flatMap { y in sheet.2[(y * sheet.0)..<(y * sheet.0 + fw)] })
+      var idlePx: [UInt32] = []; idlePx.reserveCapacity(fw * fh)
+      for y in 0..<fh { idlePx.append(contentsOf: sheet.2[(y * sheet.0)..<(y * sheet.0 + fw)]) }
+      let idle = (fw, fh, idlePx)
       var motions: [String: Motion] = [:]
       for (mn, _) in MOTIONS {
         guard let (w, h, px) = loadPNG(f.appendingPathComponent(mn + ".png")), h == fh, w % fw == 0 else { continue }   // Frame sizes must match
         let n = w / fw
-        let frames = (0..<n).map { k in (0..<h).flatMap { y in px[(y * w + k * fw)..<(y * w + k * fw + fw)] } }
+        let frames: [[UInt32]] = (0..<n).map { (k: Int) -> [UInt32] in
+          var out: [UInt32] = []; out.reserveCapacity(fw * h)
+          for y in 0..<h { let s = y * w + k * fw; out.append(contentsOf: px[s..<(s + fw)]) }
+          return out
+        }
         let f = fps[mn] ?? fps["default"] ?? 6
         var mo = Motion(w: fw, h: h, frames: frames, fps: f.isFinite ? min(60, max(0.5, f)) : 6)   // A negative or infinite fps would break the frame index
         let eyeRects = (m["eyes"] as? [[Int]] ?? []).filter { $0.count == 4 && $0[0] >= 0 && $0[1] >= 0 && $0[2] > 0 && $0[3] > 0 && $0[0] + $0[2] <= fw && $0[1] + $0[3] <= fh }   // Eyes outside the image are dropped (same filtering as make)
-        mo.eyeAt = frames.map { fp in                                               // Find where the pixels identical to the base sprite's eye are
+        mo.eyeAt = frames.map { (fp: [UInt32]) -> (Int, Int)? in                                               // Find where the pixels identical to the base sprite's eye are
           guard !eyeRects.isEmpty else { return nil }
           for dy in -4...4 { for dx in -3...3 {
             let ok = eyeRects.allSatisfy { e in (e[1]..<(e[1] + e[3])).allSatisfy { y in (e[0]..<(e[0] + e[2])).allSatisfy { x in
