@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an idea or a new agent integration
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: The situation and what the pet should do.
+    validations:
+      required: true
+  - type: textarea
+    id: alt
+    attributes:
+      label: Anything you tried already?

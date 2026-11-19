@@ -1,0 +1,193 @@
+# Dot Buddy
+
+English | [한국어](README.ko.md)
+
+<!--
+TODO(media): record these and put them in docs/media/
+  - hero.gif           pet walking on a window edge, then a "Done!" bubble with the ✓ badge (light desktop, ~6 s loop)
+  - states.gif         working (laptop) → question (?) → done (✓ 2) → asleep, side by side or in sequence
+  - click-to-jump.gif  clicking a bubble focuses the right terminal tab (cmux or iTerm2)
+  - throw.gif          dragging and throwing the pet onto a window, then climbing down
+  - characters.png     the six built-in characters (DotBuddy --preview characters.png)
+  - codex-pet.gif      a Codex pet walking on the desktop
+-->
+<p align="center">
+  <img src="docs/media/hero.gif" alt="Dot Buddy walking on a window and announcing a finished session" width="640">
+</p>
+
+**A pixel desktop pet for macOS that tells you when your coding agents are working, done, or waiting on you.**
+
+Dot Buddy lives on your desktop, walks along window edges and widgets, and watches your Claude Code sessions (other agents can plug in). When a session finishes or asks a question, it says so in a speech bubble. Click the bubble to jump to that terminal tab.
+
+- Native Swift app, zero third-party dependencies, builds from source in about a minute
+- Reads session files only; it never touches your agent's hooks or settings
+- No network connections
+- English and Korean UI
+
+## What it reacts to
+
+One pet shows the most urgent state across all sessions.
+
+| State | When | What you see |
+|---|---|---|
+| Question | A session is waiting for your answer | `?` bubble, the pet waves at you |
+| Done | A session finished and you haven't looked yet | "Done!" bubble with the session name, a ✓ badge with the count |
+| Busy | At least one session is working | Laptop out, typing; small reactions to reads, edits, tests and commits |
+| Many sessions | Several sessions running at once | It cheers you on (and remembers today's record) |
+| Resting | Nothing is going on | Wanders, sits on edges, falls asleep |
+
+Clicking the pet marks everything as seen. A finished session keeps its "done" state for 5 minutes, then the pet stops nagging.
+
+## Features
+
+- **Lives on your desktop.** Walks along the bottom of the screen, desktop widgets and the top edges of windows. It hides behind windows and walks back out when one covers it. It moves between monitors.
+- **Climbs, hangs, falls.** Climbs window sides, hangs off ledges, sits on edges and sometimes pounces on your cursor.
+- **Drag and throw.** Pick it up and toss it; it lands on whatever window or widget it hits. Transparent pixels click through.
+- **Click-to-jump.** Click a bubble to go to that session:
+
+  | Terminal | Goes to |
+  |---|---|
+  | [cmux](https://github.com/manaflow-ai/cmux) | The exact tab (via the cmux CLI) |
+  | Terminal | The exact tab (AppleScript, asks for Automation permission once) |
+  | iTerm2 | The exact session (AppleScript, asks for Automation permission once) |
+  | Anything else (Ghostty, WezTerm, kitty, VS Code, tmux inside any terminal, …) | Brings the app to the front |
+
+  You can replace this with your own command per agent (see [Configuration](#configuration)).
+- **Characters.** Six original pixel characters (Dumpling, Acorn, Sprout, Cloud, Candle, Pebble), each with its own lines and effects. Draw your own: see [CHARACTERS.md](CHARACTERS.md).
+- **Codex pets.** Pets made for the Codex app (`pet.json` + 8×9 spritesheet) load as-is from `~/.codex/pets/`.
+- **Bilingual.** Follows the system language; switch between English and Korean from the menu.
+
+## Install
+
+Requires macOS 13 or later.
+
+### Build from source (recommended)
+
+You need the Xcode Command Line Tools (`xcode-select --install`). Nothing else.
+
+```bash
+git clone https://github.com/doldoldol21/dot-buddy.git
+cd dot-buddy
+./build.sh                 # builds for this Mac and installs ~/Applications/Dot Buddy.app
+open ~/Applications/"Dot Buddy.app"
+```
+
+- `./build.sh --universal` builds one app for both Apple silicon and Intel Macs.
+- `APP=/path/to/Dot\ Buddy.app ./build.sh` installs somewhere else; `FORCE=1` rebuilds even if nothing changed.
+- The build downloads two pixel fonts (Galmuri and Neo둥근모, SIL OFL 1.1) and checks their checksums. Without network access it still builds and falls back to the system font.
+- If `python3` is installed, the build also draws the high-res built-in characters. Without it you get smaller code-drawn versions.
+
+### Download a release
+
+Each [release](https://github.com/doldoldol21/dot-buddy/releases) has a universal `Dot-Buddy-<version>.zip`. Unzip it and move `Dot Buddy.app` to `~/Applications` or `/Applications`.
+
+Release builds are ad-hoc signed and **not notarized**, so macOS blocks the first launch:
+
+1. Open the app once. macOS says it can't verify it; click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll to **Security**, and click **Open Anyway** next to "Dot Buddy". The button shows up for about an hour after you tried to open the app.
+3. Confirm with your login password.
+
+On macOS 14 and earlier, Control-click the app and choose **Open** instead. If you'd rather not bypass Gatekeeper, build from source; locally built apps aren't quarantined.
+
+## Quick start
+
+1. Launch Dot Buddy. The pet drops onto your desktop.
+2. Start a Claude Code session in any terminal and give it a task. The pet pulls out its laptop.
+3. When the task ends, a bubble says it's done. Click it to jump back to the tab.
+4. Right-click the pet for settings.
+
+On first launch the pet introduces itself in a few bubbles, then asks whether to launch at login. You can change that later from the right-click menu.
+
+## How it works
+
+Dot Buddy reads Claude Code's own session files instead of installing hooks:
+
+- `~/.claude/sessions/*.json` gives each running session's status (`busy` or `idle`), name and process ID. It honors `CLAUDE_CONFIG_DIR`.
+- A session whose process is gone drops off. A session idle for 20 minutes counts as resting.
+- To notice a pending question, it reads the last 64 KB of that session's transcript and looks for an unanswered `AskUserQuestion`.
+- While a session is working, it follows new lines appended to the transcript and reacts to tool use (reading, editing, testing, committing, subagents, errors). It never reads the earlier history. Set Chattiness to Off to stop this.
+
+Other agents report their state through the CLI that ships inside the app (see [Other agents](#other-agents)).
+
+### Privacy
+
+- **Read-only.** It never writes to `~/.claude`, never edits hooks, settings, `CLAUDE.md` or MCP config, and never adds anything to your agent's context.
+- **No network.** The app makes no network connections. Only `build.sh` downloads the fonts.
+- **What shows on screen.** Bubbles show session names and terminal tab titles, never file paths, commands or your questions. If you share your screen, those names are visible; set Chattiness to Off or quit the app before presenting.
+- Its own files live in `~/Library/Application Support/DotBuddy/` (characters, `tools.json`, state files written by `--report`).
+
+## Other agents
+
+Claude Code works out of the box. For other agents, call the app's CLI from their hooks:
+
+```bash
+DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"
+
+"$DOTBUDDY" --report <tool> <session-id> busy|idle|ask|end [--name NAME] [--label LABEL] [--pid PID]
+"$DOTBUDDY" --signal event read|edit|test|commit|shell|web|skill|error|bg-start|bg-done|agent-start[:name]|agent-done
+"$DOTBUDDY" --run [--tool NAME] -- <command …>   # wrap any CLI: busy while it runs, done when it exits
+```
+
+[docs/agents.md](docs/agents.md) has copy-paste setups for Codex CLI, Gemini CLI, Cursor, opencode and Aider.
+
+## Custom characters
+
+Drop PNGs into `~/Library/Application Support/DotBuddy/charas/` (right-click → Character → **Open Characters Folder**) and choose **Reload Characters**. A single image is enough; the app animates it. Draw per-motion frames to go further. Codex pets placed there load too.
+
+The full guide, with every motion name and the `chara.json` format, is in [CHARACTERS.md](CHARACTERS.md).
+
+## Configuration
+
+**Settings menu** (right-click the pet): Character, Size, Wandering (how often it visits windows), Chattiness (Chatty, Normal, Quiet, Off), Font, Bubble Text size, Language, Launch at Login, Quit.
+
+**`tools.json`** (`~/Library/Application Support/DotBuddy/tools.json`) customizes each agent. Changes apply on the next read, no restart needed. Keys are tool names as passed to `--report` (`claude` for Claude Code), and `*` applies to every tool.
+
+```json
+{
+  "codex": {
+    "label": "Codex",
+    "fill": "#eef4ff", "askFill": "#fff0d8", "edge": "#3a4a6a", "titleColor": "#24304a",
+    "done": ["Codex is done!"],
+    "ask": ["Codex has a question"],
+    "praise": ["{n} Codex sessions at once!"],
+    "showLabel": true
+  },
+  "cursor": { "open": ["open", "-a", "Cursor"] }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `label` | Name the pet uses for this agent |
+| `fill`, `askFill`, `edge`, `titleColor` | Bubble colors (`#rrggbb`) |
+| `done`, `ask` | Last line of a done or question bubble (one is picked at random) |
+| `praise` | Lines for many sessions at once; `{n}` is the count |
+| `showLabel` | Prefix bubble titles with the label |
+| `open` | Command to run when you click this agent's bubble, as an argument array. Placeholders: `{pid}`, `{tty}`, `{id}`, `{tool}`, `{name}`, `{app}`. If it fails, the built-in behavior runs |
+
+`open` commands run as you, without a shell. Bubbles raised by `--signal` never run them.
+
+## Troubleshooting
+
+| Problem | Try |
+|---|---|
+| The pet ignores my Claude Code sessions | Run `"$DOTBUDDY" --state`. If `sessions` is empty, check that `~/.claude/sessions/` has `.json` files while Claude Code runs. A recent Claude Code version is needed. |
+| Clicking a bubble doesn't switch tabs in Terminal or iTerm2 | Allow Dot Buddy under **System Settings → Privacy & Security → Automation**. |
+| Clicking a bubble does nothing | The session's terminal isn't a regular app (for example an IDE-hosted agent). Add an `open` command in `tools.json`. |
+| Bubble text uses the system font or shows boxes | The font download failed during the build. Rebuild with network access. |
+| Characters look small and simple | `python3` wasn't found at build time. Install it and rebuild. |
+| My character doesn't show up | Run `"$DOTBUDDY" --charas` to see what loaded. Check frame sizes against [CHARACTERS.md](CHARACTERS.md). |
+| "Dot Buddy can't be opened" | See the Gatekeeper steps under [Download a release](#download-a-release). |
+| I want it gone | Quit from the menu, delete the app and `~/Library/Application Support/DotBuddy/`. Settings live in `defaults` under `io.github.doldoldol21.dot-buddy`. |
+
+## Contributing
+
+Bug reports, characters you drew yourself and integrations for more agents are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## License and acknowledgements
+
+MIT, see [LICENSE](LICENSE). Bundled fonts are under the SIL Open Font License 1.1; details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+- [OpenPets](https://github.com/alterhq/openpets) (MIT) inspired a few behaviors: click-through on transparent pixels, fast ticks only while moving, and sampling throw velocity. No code was copied.
+- The Codex pet format (`pet.json` + 8×9 spritesheet) is read for compatibility. Dot Buddy is not affiliated with OpenAI or Anthropic.
+- Bubble fonts: [Galmuri](https://github.com/quiple/galmuri) and [Neo둥근모](https://github.com/neodgm/neodgm).

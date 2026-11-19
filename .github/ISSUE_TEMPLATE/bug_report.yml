@@ -1,0 +1,41 @@
+name: Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what the pet did instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Dot Buddy version
+      description: Output of `"$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy" --version`
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and chip
+      placeholder: macOS 15.3, Apple silicon
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options: [Claude Code, Codex CLI, Gemini CLI, Cursor, opencode, Aider, Other / none]
+  - type: dropdown
+    id: terminal
+    attributes:
+      label: Terminal
+      options: [cmux, Terminal, iTerm2, Ghostty, WezTerm, kitty, VS Code / Cursor, Other]
+  - type: textarea
+    id: state
+    attributes:
+      label: Session state (optional)
+      description: Output of `DotBuddy --state`. It contains session names, so remove anything private.
+      render: json

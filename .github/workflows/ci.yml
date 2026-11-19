@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build and self-test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        run: APP="$RUNNER_TEMP/Dot.app" FORCE=1 ./build.sh
+
+      - name: Self-test
+        run: python3 selftest.py
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check that VERSION matches the tag
+        run: |
+          v="$(tr -d ' \n' < VERSION)"
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::VERSION says $v but the tag is $GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Build universal app
+        run: APP="$RUNNER_TEMP/Dot Buddy.app" FORCE=1 ./build.sh --universal
+
+      - name: Verify the bundle
+        run: |
+          app="$RUNNER_TEMP/Dot Buddy.app"
+          lipo -archs "$app/Contents/MacOS/DotBuddy"
+          codesign --verify --strict "$app"
+          "$app/Contents/MacOS/DotBuddy" --version
+
+      - name: Zip
+        run: ditto -c -k --keepParent "$RUNNER_TEMP/Dot Buddy.app" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "Dot-Buddy-${GITHUB_REF_NAME#v}.zip" \
+            --title "Dot Buddy ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            --verify-tag
