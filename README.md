@@ -1,6 +1,10 @@
-# Dot Buddy
+<p align="center">
+  <img src="docs/media/icon.png" alt="Dot Buddy icon" width="128">
+</p>
 
-English | [한국어](README.ko.md)
+<h1 align="center">Dot Buddy</h1>
+
+<p align="center">English | <a href="README.ko.md">한국어</a></p>
 
 <!--
 TODO(media): record these and put them in docs/media/
@@ -8,11 +12,10 @@ TODO(media): record these and put them in docs/media/
   - states.gif         working (laptop) → question (?) → done (✓ 2) → asleep, side by side or in sequence
   - click-to-jump.gif  clicking a bubble focuses the right terminal tab (cmux or iTerm2)
   - throw.gif          dragging and throwing the pet onto a window, then climbing down
-  - characters.png     the six built-in characters (DotBuddy --preview characters.png)
   - codex-pet.gif      a Codex pet walking on the desktop
 -->
 <p align="center">
-  <img src="docs/media/hero.gif" alt="Dot Buddy walking on a window and announcing a finished session" width="640">
+  <img src="docs/media/characters.png" alt="The six built-in characters: Dumpling, Acorn, Sprout, Cloud, Candle and Pebble" width="720">
 </p>
 
 **A pixel desktop pet for macOS that tells you when your coding agents are working, done, or waiting on you.**

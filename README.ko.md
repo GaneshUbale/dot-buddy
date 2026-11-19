@@ -1,10 +1,14 @@
-# 도트 친구 (Dot Buddy)
+<p align="center">
+  <img src="docs/media/icon.png" alt="도트 친구 아이콘" width="128">
+</p>
 
-[English](README.md) | 한국어
+<h1 align="center">도트 친구 (Dot Buddy)</h1>
+
+<p align="center"><a href="README.md">English</a> | 한국어</p>
 
 <!-- 그림 목록(찍을 GIF)은 README.md 맨 위 TODO 주석에 있어요 -->
 <p align="center">
-  <img src="docs/media/hero.gif" alt="창 위를 걷다가 세션이 끝났다고 알려 주는 도트 친구" width="640">
+  <img src="docs/media/characters.png" alt="기본 캐릭터 여섯: 만두·도토리·새싹 화분·구름·촛불·이끼돌" width="720">
 </p>
 
 **코딩 에이전트가 일하는지, 끝났는지, 나를 기다리는지 알려 주는 macOS 바탕화면 도트 펫이에요.**
