@@ -860,6 +860,11 @@ final class Pet: NSObject, NSMenuDelegate {
   var lastActName = "", profPos = CGPoint.zero, profAct = ""
   func tickBody() {
     let t = now
+    if t < snoozeUntil {                                                            // Hidden for a while (menu): keep everything out of sight, wake rarely
+      for w in [window, noticeWin, chatWin, badgeWin] as [NSWindow?] where w?.isVisible == true { w?.orderOut(nil) }
+      schedule(min(5, max(0.5, snoozeUntil - t))); return
+    }
+    if snoozed { snoozed = false; window.orderFrontRegardless(); applyLevel(); cheerUntil = t + 1.5; say(T("나 왔어!", "I'm back!"), t) }
     if prof {                                                                       // Teleport detection: if moved more than 25pt in one tick, what moved it
       let n0 = String(describing: act).components(separatedBy: "(")[0]
       let jump = hypot(pos.x - profPos.x, pos.y - profPos.y)
@@ -1615,7 +1620,7 @@ final class Pet: NSObject, NSMenuDelegate {
   func stepNotice(_ t: Double) {
     if let _ = showing, t > showUntil { hideNotice() }
     if showing == nil, !notices.isEmpty, !(chatUntil > t && t < chatGate) {        // After the bubble on screen has filled its minimum time, one by one in turn
-      let n = notices.removeFirst()
+      let (n, rest) = mergeNotices(notices.removeFirst(), notices); notices = rest   // three or more finished at once: one bubble
       showing = n; showUntil = t + noticeSecs
       if prof { FileHandle.standardError.write("  bubble notice t=\(String(format: "%.2f", t)) \(n.title)\n".data(using: .utf8)!) }
       let tail = doneLine(n)                                                   // The text is chosen on main (together with the recent-lines history)
@@ -1964,6 +1969,21 @@ final class Pet: NSObject, NSMenuDelegate {
       menu.addItem(withTitle: title, action: nil, keyEquivalent: "").submenu = m
     }
     func cur<T: Equatable>(_ opts: [(String, T)], _ v: T) -> String { opts.first { $0.1 == v }?.0 ?? "" }
+    let live = list.filter { $0.mood != .sleep }
+    if !list.isEmpty {                                                             // Sessions: what each is doing; choose one to jump to it
+      let count = { (m: Mood) in self.list.filter { $0.mood == m }.count }
+      let head = T("세션 \(list.count)개 — 일함 \(count(.work)) · 기다림 \(count(.wait) + count(.ask))", "\(list.count) sessions — \(count(.work)) working · \(count(.wait) + count(.ask)) waiting")
+      let m = NSMenu()
+      for s in (live.isEmpty ? list : live).prefix(20) {
+        let mark = s.mood == .ask ? "?" : s.mood == .wait ? "✓" : s.mood == .work ? "…" : s.mood == .free ? "·" : "z"
+        let who = s.tool == "claude" ? "" : "\(s.label) · "
+        let it = NSMenuItem(title: "\(mark)  \(who)\(s.name)", action: #selector(openListed(_:)), keyEquivalent: ""); it.target = self; it.representedObject = s.id; m.addItem(it)
+      }
+      if !live.isEmpty && live.count < list.count { m.addItem(.separator()); m.addItem(withTitle: T("쉬는 세션 \(list.count - live.count)개", "\(list.count - live.count) resting"), action: nil, keyEquivalent: "") }
+      menu.addItem(withTitle: head, action: nil, keyEquivalent: "").submenu = m
+    }
+    sub(T("잠깐 숨기기", "Hide for a While"), [(T("15분", "15 Minutes"), false, #selector(snooze(_:)), 15.0), (T("1시간", "1 Hour"), false, #selector(snooze(_:)), 60.0), (T("3시간", "3 Hours"), false, #selector(snooze(_:)), 180.0)])
+    menu.addItem(.separator())
     let sizes = [(T("작게", "Small"), 2), (T("보통", "Medium"), 3), (T("크게", "Large"), 4)], texts = [(T("아주 작게", "Tiny"), 1), (T("작게", "Small"), 2), (T("보통", "Medium"), 3), (T("크게", "Large"), 4)]
     let talks = [(T("수다쟁이", "Chatty"), 3), (T("보통", "Normal"), 2), (T("과묵", "Quiet"), 1), (T("끄기", "Off"), 0)]
     sub(T("캐릭터: \(chara.name)", "Character: \(chara.name)"), ALL_CHARAS.map { ($0.name, $0.id == chara.id, #selector(setChara(_:)), $0.id) })
@@ -1989,6 +2009,7 @@ final class Pet: NSObject, NSMenuDelegate {
     }
     let au = NSMenuItem(title: BUILD_KIND == "release" ? T("자동으로 업데이트", "Update Automatically") : T("새 판 나오면 알려 주기", "Tell Me About New Versions"), action: #selector(toggleAutoUpdate), keyEquivalent: "")
     au.target = self; au.state = UD.bool(forKey: "autoUpdate") ? .on : .off; menu.addItem(au)
+    let cli = NSMenuItem(title: T("명령줄 도구 설치 (다른 에이전트 연결용)", "Install Command-Line Tools (for other agents)"), action: #selector(installCLINow), keyEquivalent: ""); cli.target = self; menu.addItem(cli)
     menu.addItem(.separator())
     let login = NSMenuItem(title: T("로그인할 때 켜기", "Launch at Login"), action: #selector(toggleLogin), keyEquivalent: ""); login.target = self
     login.state = SMAppService.mainApp.status == .enabled ? .on : .off; menu.addItem(login)
@@ -2025,6 +2046,21 @@ final class Pet: NSObject, NSMenuDelegate {
     try? SMAppService.mainApp.register()
     if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
   }
+  // ---------- Hide for a while ----------
+  var snoozeUntil = 0.0, snoozed = false
+  @objc func snooze(_ it: NSMenuItem) {
+    guard let mins = it.representedObject as? Double else { return }
+    snoozeUntil = now + mins * 60; snoozed = true; hideNotice(); chatUntil = 0
+    for w in [window, noticeWin, chatWin, badgeWin] as [NSWindow?] { w?.orderOut(nil) }
+    schedule(0.5)
+  }
+  /// Session list (menu): choosing one goes to its terminal, like clicking its bubble
+  @objc func openListed(_ it: NSMenuItem) {
+    guard let id = it.representedObject as? String, let s = list.first(where: { $0.id == id }) else { return }
+    ack()
+    DispatchQueue.global().async { openSession(pid: s.pid, id: s.id, tool: s.tool, name: s.name) }
+  }
+
   // ---------- Updates (see Update.swift) ----------
   var availableUpdate: UpdateInfo?, updateTimer: Timer?, updating = false
   /// Automatic checks: a day after the last one (or a minute after launch if that's overdue), then every 6 hours look again whether a day has passed
@@ -2070,6 +2106,13 @@ final class Pet: NSObject, NSMenuDelegate {
       DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in self?.installWhenIdle() }; return
     }
     installUpdateNow()
+  }
+  @objc func installCLINow() {
+    let dir = NSHomeDirectory() + "/.local/bin"
+    switch installCLI(dir) {
+    case .success: say(onPath(dir) ? T("dotbuddy·dotbuddy-hook 깔았어!", "Installed dotbuddy and dotbuddy-hook!") : T("~/.local/bin 에 깔았어! PATH 에 넣어 줘", "Installed in ~/.local/bin, add it to PATH"), now)
+    case .failure(let e): say(T("못 깔았어요: ", "Couldn't install: ") + e.localizedDescription, now)
+    }
   }
   @objc func checkUpdatesNow() { checkForUpdates(manual: true) }
   @objc func installUpdateNow() {

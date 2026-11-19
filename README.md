@@ -77,6 +77,14 @@ open ~/Applications/"Dot Buddy.app"
 - The build downloads two pixel fonts (Galmuri and Neo둥근모, SIL OFL 1.1) and checks their checksums. Without network access it still builds and falls back to the system font.
 - If `python3` is installed, the build also draws the high-res built-in characters. Without it you get smaller code-drawn versions.
 
+### Homebrew
+
+```bash
+brew install --cask doldoldol21/tap/dot-buddy
+```
+
+The same unnotarized release zip, so the first launch needs the Gatekeeper steps below. The app updates itself after that (`brew upgrade --greedy` also works).
+
 ### Download a release
 
 Each [release](https://github.com/doldoldol21/dot-buddy/releases) has a universal `Dot-Buddy-<version>.zip`. Unzip it and move `Dot Buddy.app` to `~/Applications` or `/Applications`.
@@ -124,10 +132,15 @@ Other agents report their state through the CLI that ships inside the app (see [
 
 ## Other agents
 
-Claude Code works out of the box. For other agents, call the app's CLI from their hooks:
+Claude Code works out of the box. For other agents, first choose **Install Command-Line Tools** in the right-click menu (or run `"$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy" --install-cli`). It links two commands into `~/.local/bin`, and they keep working after the app updates itself:
+
+- `dotbuddy`: the app's CLI, used below.
+- `dotbuddy-hook TOOL ID_KEY ACTION [REPLY]`: for agents whose hooks pass JSON on stdin. It reads the session id from the JSON key `ID_KEY` and reports `ACTION` (`busy`, `idle`, `ask`, `end` or `event:NAME`), prints `REPLY` if the agent expects one, and always exits 0.
+
+Then call it from their hooks:
 
 ```bash
-DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"
+DOTBUDDY=dotbuddy   # or the full path inside the app
 
 "$DOTBUDDY" --report <tool> <session-id> busy|idle|ask|end [--name NAME] [--label LABEL] [--pid PID]
 "$DOTBUDDY" --signal event read|edit|test|commit|shell|web|skill|error|bg-start|bg-done|agent-start[:name]|agent-done
@@ -146,7 +159,7 @@ The full guide, with every motion name and the `chara.json` format, is in [CHARA
 
 ## Configuration
 
-**Settings menu** (right-click the pet): Character, Size, Wandering (how often it visits windows), Chattiness (Chatty, Normal, Quiet, Off), Font, Bubble Text size, Language, Check for Updates…, Update Automatically, Launch at Login, Quit.
+**Settings menu** (right-click the pet): Sessions (what each one is doing; choose one to jump to it), Hide for a While, Character, Size, Wandering (how often it visits windows), Chattiness (Chatty, Normal, Quiet, Off), Font, Bubble Text size, Language, Check for Updates…, Update Automatically, Install Command-Line Tools, Launch at Login, Quit. When three or more sessions finish at once, they share one bubble ("4 done: api, web, docs…").
 
 **`tools.json`** (`~/Library/Application Support/DotBuddy/tools.json`) customizes each agent. Changes apply on the next read, no restart needed. Keys are tool names as passed to `--report` (`claude` for Claude Code), and `*` applies to every tool.
 

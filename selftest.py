@@ -227,6 +227,14 @@ with tempfile.TemporaryDirectory() as packs:
     r = subprocess.run([BIN, "--typing-preview", tp], capture_output=True, text=True, timeout=20)
     check("타이핑 말풍선", (r.returncode, os.path.exists(tp) and os.path.getsize(tp) > 500), (0, True))
 
+# Notices: three or more "done" at once merge into one bubble; questions stay separate
+def merged(spec):
+    return subprocess.run([BIN, "--merge-notices", spec], capture_output=True, text=True, timeout=10, env={**os.environ, "DOTBUDDY_LANG": "en"}).stdout.split("\n")[:2]
+check("notices — two stay separate", merged("a,b"), ["a", "b"])
+check("notices — four merge", merged("a,b,c,d"), ["4 done: a, b, c…", ""])
+check("notices — questions not merged", merged("a,q?,b,c"), ["3 done: a, b, c", "q"])
+check("notices — a question first is shown alone", merged("q?,a,b"), ["q", "a,b"])
+
 # Updater: version order, and a signature that doesn't match is refused (the real key only lives in CI)
 def run_ok(*args):
     return subprocess.run([BIN, *args], capture_output=True, timeout=20).returncode == 0

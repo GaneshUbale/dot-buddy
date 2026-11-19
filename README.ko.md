@@ -73,6 +73,14 @@ open ~/Applications/"Dot Buddy.app"
 - 빌드할 때 도트 글꼴 두 가지(갈무리, Neo둥근모, SIL OFL 1.1)를 받아서 체크섬을 확인해요. 인터넷이 안 되면 시스템 글꼴로 빌드돼요.
 - `python3` 가 있으면 고화질 기본 캐릭터도 그려 넣어요. 없으면 코드로 그린 작은 그림으로 나와요.
 
+### Homebrew
+
+```bash
+brew install --cask doldoldol21/tap/dot-buddy
+```
+
+같은 릴리스 zip(공증 안 됨)이라 처음 열 때는 아래 '그래도 열기' 절차가 필요해요. 그 뒤로는 앱이 스스로 업데이트해요(`brew upgrade --greedy` 도 돼요).
+
 ### 릴리스 받기
 
 [릴리스](https://github.com/doldoldol21/dot-buddy/releases)마다 유니버설 `Dot-Buddy-<버전>.zip` 이 있어요. 압축을 풀고 `Dot Buddy.app` 을 `~/Applications` 나 `/Applications` 로 옮기세요.
@@ -120,10 +128,15 @@ macOS 14 이하에서는 앱을 Control-클릭하고 **열기**를 고르면 돼
 
 ## 다른 에이전트
 
-Claude Code 는 따로 할 게 없어요. 다른 에이전트는 그 에이전트의 훅에서 앱의 CLI 를 부르면 돼요.
+Claude Code 는 따로 할 게 없어요. 다른 에이전트는 먼저 오른쪽 클릭 메뉴의 **명령줄 도구 설치**를 눌러요(또는 `"$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy" --install-cli`). `~/.local/bin` 에 명령 두 개가 링크로 깔리고, 앱이 스스로 업데이트해도 그대로 써요.
+
+- `dotbuddy`: 앱의 CLI 예요. 아래에서 써요.
+- `dotbuddy-hook 도구 ID_키 동작 [응답]`: 훅이 JSON 을 표준 입력으로 주는 에이전트용이에요. JSON 의 `ID_키` 에서 세션 id 를 읽어 `동작`(`busy`·`idle`·`ask`·`end`·`event:이름`)을 알리고, 에이전트가 응답을 기다리면 `응답`을 찍고, 늘 0 으로 끝나요.
+
+그다음 그 에이전트의 훅에서 불러요.
 
 ```bash
-DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"
+DOTBUDDY=dotbuddy   # 또는 앱 안의 전체 경로
 
 "$DOTBUDDY" --report <도구> <세션-id> busy|idle|ask|end [--name 이름] [--label 부를 이름] [--pid PID]
 "$DOTBUDDY" --signal event read|edit|test|commit|shell|web|skill|error|bg-start|bg-done|agent-start[:이름]|agent-done
@@ -142,7 +155,7 @@ Codex CLI, Gemini CLI, Cursor, opencode, Aider 설정은 [docs/agents.md](docs/a
 
 ## 설정
 
-**설정 메뉴**(펫을 오른쪽 클릭): 캐릭터, 크기, 돌아다니기(창으로 놀러 가는 빈도), 수다(수다쟁이부터 끄기까지), 말풍선 글꼴, 말풍선 글자 크기, 언어, 업데이트 확인…, 자동으로 업데이트, 로그인할 때 켜기, 종료.
+**설정 메뉴**(펫을 오른쪽 클릭): 세션(각자 뭘 하는지, 고르면 그 터미널로), 잠깐 숨기기, 캐릭터, 크기, 돌아다니기(창으로 놀러 가는 빈도), 수다(수다쟁이부터 끄기까지), 말풍선 글꼴, 말풍선 글자 크기, 언어, 업데이트 확인…, 자동으로 업데이트, 명령줄 도구 설치, 로그인할 때 켜기, 종료. 세션 세 개 이상이 한꺼번에 끝나면 말풍선 하나로 묶어 보여 줘요("4곳 끝남: api, web, docs…").
 
 **`tools.json`**(`~/Library/Application Support/DotBuddy/tools.json`)으로 에이전트마다 꾸밀 수 있어요. 고치면 다음에 읽을 때 바로 반영되고 앱을 다시 켤 필요가 없어요. 키는 `--report` 에 준 도구 이름이에요(Claude Code 는 `claude`). `*` 는 모든 도구에 적용돼요.
 

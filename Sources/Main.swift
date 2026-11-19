@@ -19,6 +19,7 @@
 //                            (--signal also takes say|done|ask|work|cheer|poke [text] [--from NAME])
 //   DotBuddy --preview a.png character x pose sample sheet
 //   DotBuddy --demo-gif a.gif [hero|characters]   README demo animation, drawn offscreen
+//   DotBuddy --install-cli [dir]  link dotbuddy and dotbuddy-hook into ~/.local/bin · --hook TOOL ID_KEY ACTION [REPLY] (= dotbuddy-hook, reads hook JSON on stdin)
 //   DotBuddy --check-update  latest GitHub release vs this build (JSON) · --verify-update <zip> <sig> · --install-update <app path>
 import AppKit
 import CoreText
@@ -82,6 +83,14 @@ func exportPack(_ ch: Chara, to dir: URL) -> [String] {
 struct Main {
   static func main() {
     let a = CommandLine.arguments
+    if (a[0] as NSString).lastPathComponent == "dotbuddy-hook" { runHook(Array(a.dropFirst())) }   // the same binary linked as dotbuddy-hook
+    if a.count >= 2 && a[1] == "--hook" { runHook(Array(a.dropFirst(2))) }
+    if a.count >= 2 && a[1] == "--install-cli" {
+      switch installCLI(a.count >= 3 ? a[2] : NSHomeDirectory() + "/.local/bin") {
+      case .success(let l): print(l.joined(separator: "\n")); exit(0)
+      case .failure(let e): print(e.localizedDescription); exit(1)
+      }
+    }
     if a.count == 2 && (a[1] == "--version" || a[1] == "-v") { print(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"); exit(0) }   // run bin/DotBuddy directly and it prints dev
     if a.count >= 3 && a[1] == "--lines" {
       // sample mutterings by circumstance (for tests): --lines <kind> [high=pt] [on=base|widget|window] [spot=…] [mood=work|wait|ask|sleep] [working=N] [fast=1]
@@ -208,6 +217,12 @@ struct Main {
     if a.count >= 4 && a[1] == "--verify-update" {                                 // --verify-update <zip> <sig file> [public key]: exit 0 if the signature is valid
       guard let d = FileManager.default.contents(atPath: a[2]), let s = FileManager.default.contents(atPath: a[3]) else { exit(2) }
       exit(verifyUpdate(d, sig: String(decoding: s, as: UTF8.self), key: a.count >= 5 ? a[4] : UPDATE_PUBLIC_KEY) ? 0 : 1)
+    }
+    if a.count >= 3 && a[1] == "--merge-notices" {                                 // test hook: --merge-notices "a,b?,c" (? = question) → what the next bubble says, then what stays queued
+      let ns = a[2].split(separator: ",").map { s in Notice(pid: 0, id: String(s), title: String(s.replacingOccurrences(of: "?", with: "")), ask: s.hasSuffix("?")) }
+      guard let f = ns.first else { exit(2) }
+      let (n, rest) = mergeNotices(f, Array(ns.dropFirst()))
+      print(n.title); print(rest.map(\.title).joined(separator: ",")); exit(0)
     }
     if a.count == 4 && a[1] == "--version-newer" { exit(versionNewer(a[2], than: a[3]) ? 0 : 1) }
     if a.count >= 3 && a[1] == "--demo-gif" {                                      // README demo animation: --demo-gif <out.gif> [hero|characters]
