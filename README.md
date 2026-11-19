@@ -7,15 +7,12 @@
 <p align="center">English | <a href="README.ko.md">한국어</a></p>
 
 <!--
-TODO(media): record these and put them in docs/media/
-  - hero.gif           pet walking on a window edge, then a "Done!" bubble with the ✓ badge (light desktop, ~6 s loop)
-  - states.gif         working (laptop) → question (?) → done (✓ 2) → asleep, side by side or in sequence
-  - click-to-jump.gif  clicking a bubble focuses the right terminal tab (cmux or iTerm2)
-  - throw.gif          dragging and throwing the pet onto a window, then climbing down
-  - codex-pet.gif      a Codex pet walking on the desktop
+Media in docs/media/ is drawn by the app itself: `bin/DotBuddy --demo-gif docs/media/hero.gif hero`
+(DOTBUDDY_LANG=ko for hero.ko.gif) and `--demo-gif docs/media/characters.gif characters`.
+Still worth recording on a real desktop some day: throwing the pet onto a window, click-to-jump to a terminal tab.
 -->
 <p align="center">
-  <img src="docs/media/characters.png" alt="The six built-in characters: Dumpling, Acorn, Sprout, Cloud, Candle and Pebble" width="720">
+  <img src="docs/media/hero.gif" alt="Dot Buddy walks along a window, works on a laptop while the agent runs, then announces a finished session and a question" width="720">
 </p>
 
 **A pixel desktop pet for macOS that tells you when your coding agents are working, done, or waiting on you.**
@@ -134,6 +131,8 @@ DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"
 [docs/agents.md](docs/agents.md) has copy-paste setups for Codex CLI, Gemini CLI, Cursor, opencode and Aider.
 
 ## Custom characters
+
+<p align="center"><img src="docs/media/characters.gif" alt="The six built-in characters: Dumpling, Acorn, Sprout, Cloud, Candle and Pebble" width="720"></p>
 
 Drop PNGs into `~/Library/Application Support/DotBuddy/charas/` (right-click → Character → **Open Characters Folder**) and choose **Reload Characters**. A single image is enough; the app animates it. Draw per-motion frames to go further. Codex pets placed there load too.
 

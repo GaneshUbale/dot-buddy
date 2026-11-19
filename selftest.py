@@ -227,6 +227,12 @@ with tempfile.TemporaryDirectory() as packs:
     r = subprocess.run([BIN, "--typing-preview", tp], capture_output=True, text=True, timeout=20)
     check("타이핑 말풍선", (r.returncode, os.path.exists(tp) and os.path.getsize(tp) > 500), (0, True))
 
+# README demo GIFs are drawn offscreen by the app (no screen recording)
+with tempfile.TemporaryDirectory() as td:
+    g = os.path.join(td, "c.gif")
+    r = subprocess.run([BIN, "--demo-gif", g, "characters"], capture_output=True, timeout=60)
+    check("demo GIF", (r.returncode, os.path.exists(g) and open(g, "rb").read(6) in (b"GIF89a", b"GIF87a")), (0, True))
+
 # English: with an English system language, no Hangul gets mixed into the mutterings and notification text
 import re
 def en_lines(*args):

@@ -18,6 +18,7 @@
 //                            call it from that agent's tool hooks and the pet gestures and mutters like it does for Claude
 //                            (--signal also takes say|done|ask|work|cheer|poke [text] [--from NAME])
 //   DotBuddy --preview a.png character x pose sample sheet
+//   DotBuddy --demo-gif a.gif [hero|characters]   README demo animation, drawn offscreen
 import AppKit
 import CoreText
 import ServiceManagement
@@ -186,6 +187,9 @@ struct Main {
       for f in sc.floors { print(f.kind, Int(f.y), Int(f.x0), Int(f.x1), f.edgeL ? "L" : "-", f.edgeR ? "R" : "-") }
       if let d = dockEstimate(screensNow()) { print("dock-bar", Int(d.minX), Int(d.maxX), "top", Int(d.maxY), sc.floors.contains { $0.owner == "dock" } ? T("(설 수 있음)", "(can stand)") : T("(앞 창에 가려 지금은 못 섬)", "(hidden behind a window, cannot stand now)")) }
       return
+    }
+    if a.count >= 3 && a[1] == "--demo-gif" {                                      // README demo animation: --demo-gif <out.gif> [hero|characters]
+      exit(demoGIF(a[2], scene: a.count >= 4 ? a[3] : "hero") ? 0 : 1)
     }
     if a.count >= 3 && a[1] == "--notice-preview" {
       // the pet (✓ bubble) + bubbles at each font size step, placed side by side at 1x then enlarged 3x — to check the dot size is the same. Third argument = font id

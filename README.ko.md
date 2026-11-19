@@ -6,9 +6,9 @@
 
 <p align="center"><a href="README.md">English</a> | 한국어</p>
 
-<!-- 그림 목록(찍을 GIF)은 README.md 맨 위 TODO 주석에 있어요 -->
+<!-- 그림은 앱이 직접 그려요: bin/DotBuddy --demo-gif (README.md 맨 위 주석 참고) -->
 <p align="center">
-  <img src="docs/media/characters.png" alt="기본 캐릭터 여섯: 만두·도토리·새싹 화분·구름·촛불·이끼돌" width="720">
+  <img src="docs/media/hero.ko.gif" alt="창 위를 걷다가 노트북으로 일하고, 세션이 끝났다·질문이 있다고 알려 주는 도트 친구" width="720">
 </p>
 
 **코딩 에이전트가 일하는지, 끝났는지, 나를 기다리는지 알려 주는 macOS 바탕화면 도트 펫이에요.**
@@ -127,6 +127,8 @@ DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"
 Codex CLI, Gemini CLI, Cursor, opencode, Aider 설정은 [docs/agents.md](docs/agents.md)에 복사해서 쓸 수 있게 정리해 뒀어요(영어).
 
 ## 내 캐릭터 넣기
+
+<p align="center"><img src="docs/media/characters.gif" alt="기본 캐릭터 여섯: 만두·도토리·새싹 화분·구름·촛불·이끼돌" width="720"></p>
 
 `~/Library/Application Support/DotBuddy/charas/` 에 PNG 를 넣고(오른쪽 클릭 → 캐릭터 → 캐릭터 폴더 열기) **캐릭터 다시 불러오기**를 누르면 돼요. 그림 한 장이면 충분하고, 움직임은 앱이 만들어요. 동작마다 직접 그려 넣을 수도 있어요. 여기에 넣은 Codex 펫도 불러와요.
 
