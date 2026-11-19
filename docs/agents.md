@@ -4,7 +4,7 @@ Dot Buddy follows Claude Code on its own by reading Claude Code's session files.
 
 This page has copy-paste setups for Codex CLI, Gemini CLI, Cursor, opencode and Aider, plus a wrapper for anything else.
 
-> **Status.** Every setup below was written against the agent's official documentation or source (links in [Sources](#sources), checked 2026-11). None of them has been run end-to-end by the maintainers yet, so each is marked **untested**. Hook formats change between versions. If one breaks or you got it working, please open an issue or pull request.
+> **Status.** Every setup below was written against the agent's official documentation or source (links in [Sources](#sources), checked 2026-11). Codex CLI, Gemini CLI, opencode and Aider were then run on 2026-11-19 in a scratch home with a local mock model server (no account, no API key, no real model call); each section says exactly what ran. Cursor is a GUI app and was not run. What a section doesn't list as tested is still **untested**. Hook formats change between versions. If one breaks or you got it working, please open an issue or pull request.
 
 ## The two commands
 
@@ -44,46 +44,31 @@ Both commands return immediately, print nothing on success, and exit with 2 on a
 
 Check what the pet currently sees with `"$DOTBUDDY" --state`.
 
-## Helper script for JSON hooks
+## `dotbuddy-hook`: the helper for JSON hooks
 
-Codex, Gemini CLI and Cursor pass hook data as JSON. This helper pulls the session id out of it with the built-in `plutil`, calls Dot Buddy, prints an optional reply for agents that expect JSON on stdout, and always exits 0 so it can't block the agent.
+Codex, Gemini CLI and Cursor pass hook data as JSON on stdin. The app ships a helper for that. Install it once from the pet's right-click menu (**Install Command-Line Tools**), or run:
 
 ```bash
-mkdir -p ~/.local/bin
-cat > ~/.local/bin/dotbuddy-hook <<'EOF'
-#!/bin/sh
-# dotbuddy-hook TOOL ID_KEY ACTION [REPLY]
-#   TOOL    short agent name, e.g. codex, gemini, cursor (also the key in tools.json)
-#   ID_KEY  JSON key on stdin that holds the session id, e.g. session_id
-#   ACTION  busy | idle | ask | end, or event:NAME (read, edit, shell, ...)
-#   REPLY   text to print on stdout afterwards, for agents that expect JSON
-# Reads the hook's JSON from stdin. Always exits 0 and prints nothing else,
-# so it can never block or confuse the agent.
-HOME=${HOME:-$(echo ~)}
-DOTBUDDY="${DOTBUDDY:-$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy}"
-tool=$1 key=$2 action=$3 reply=${4-}
-input=$(cat)
-field() { printf '%s' "$input" | /usr/bin/plutil -extract "$1" raw -o - - 2>/dev/null; }
-case $action in
-  event:*)
-    "$DOTBUDDY" --signal event "${action#event:}" --from "$tool" >/dev/null 2>&1 ;;
-  *)
-    id=$(field "$key")
-    dir=$(field cwd || field workspace_roots.0)
-    [ -n "$id" ] && "$DOTBUDDY" --report "$tool" "$id" "$action" \
-      ${dir:+--name "$tool · ${dir##*/}"} ${DOTBUDDY_PID:+--pid "$DOTBUDDY_PID"} >/dev/null 2>&1 ;;
-esac
-[ -n "$reply" ] && printf '%s\n' "$reply"
-exit 0
-EOF
-chmod +x ~/.local/bin/dotbuddy-hook
+"$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy" --install-cli    # links dotbuddy and dotbuddy-hook into ~/.local/bin
 ```
 
-Set `DOTBUDDY=/path/to/DotBuddy` if you installed the app somewhere else. The bubble title becomes `<tool> · <folder>`.
+Both are links to the app's own binary, so they keep working after the app updates itself. (Version 0.2.0 or later; for older versions, use `DotBuddy --hook …`.)
+
+```text
+dotbuddy-hook TOOL ID_KEY ACTION [REPLY]
+  TOOL    short agent name, e.g. codex, gemini, cursor (also the key in tools.json)
+  ID_KEY  JSON key on stdin that holds the session id: session_id, thread-id, conversation_id; a dotted path also works (workspace_roots.0)
+  ACTION  busy | idle | ask | end, or event:NAME (read, edit, shell, ...)
+  REPLY   text to print on stdout afterwards, for agents that expect JSON
+```
+
+It reads the session id, names the bubble `<tool> · <folder>` from `cwd` (or `workspace_roots.0`), passes `DOTBUDDY_PID` as `--pid` if set, prints `REPLY`, and always exits 0 without printing anything else, so it can never block or confuse the agent.
+
+**Tested 2026-11-19** (with the earlier shell version of this helper, now built into the app with the same behavior; the app's `DotBuddy` binary with `DOTBUDDY_SESSIONS` pointed at a scratch folder): the right `<tool>-<id>.json` file appears with the right `status`, `name` and `pid` for `codex`, `gemini` and `cursor` shaped payloads (`session_id`, `thread-id`, `conversation_id`, `workspace_roots.0`); `end` removes it; numeric ids, Korean ids and paths, ids with `/`, spaces or quotes, and a 5 MB payload all work (0.2 s); missing id, empty stdin, invalid JSON, a missing binary and a bad action all print only the reply and exit 0; `event:NAME` calls `--signal event NAME --from TOOL` (checked with a stand-in binary, so the running app was not signalled).
 
 ## Codex CLI
 
-**Untested.** Two options: `notify` is one line but only knows "turn finished"; hooks cover the full cycle. Use one, not both.
+**Tested 2026-11-19, Codex CLI 0.170.0**, with `CODEX_HOME` and `HOME` in a scratch folder and a local mock model server. Nothing needs a login that way. Both options below fired with the exact config shown; details are under each option. Not exercised: `PermissionRequest` and `Interrupt` (they need an approval prompt or a keypress) and the `/hooks` trust screen (the test used `--dangerously-bypass-hook-trust`). Two options: `notify` is one line but only knows "turn finished"; hooks cover the full cycle. Use one, not both.
 
 ### Option A: `notify` (done only)
 
@@ -93,7 +78,7 @@ Codex runs the `notify` program after each turn with one JSON argument (`type` i
 notify = ["/bin/sh", "-c", 'printf "%s" "$1" | DOTBUDDY_PID=$PPID ~/.local/bin/dotbuddy-hook codex thread-id idle', "dotbuddy"]
 ```
 
-`DOTBUDDY_PID=$PPID` ties the session to the Codex process, so it disappears when Codex exits and clicking the bubble finds the terminal tab. If the session vanishes right after the bubble appears, Codex launched the command through another process; drop `DOTBUDDY_PID=$PPID`.
+`DOTBUDDY_PID=$PPID` ties the session to the Codex process, so it disappears when Codex exits and clicking the bubble finds the terminal tab. Checked in the interactive TUI: `$PPID` was the Codex process. In `codex exec` Codex exits right after the turn, so `$PPID` there is 1 and the session vanishes at once; use hooks for scripted runs. `thread-id` is the same id the hooks call `session_id`. If the session vanishes right after the bubble appears in the TUI, Codex launched the command through another process; drop `DOTBUDDY_PID=$PPID`.
 
 The pet won't show Codex as busy with this option, only done.
 
@@ -130,7 +115,7 @@ Codex loads lifecycle hooks from `~/.codex/hooks.json`. Every command hook gets 
 }
 ```
 
-Then run `/hooks` inside Codex and trust the new hooks; Codex skips hooks it hasn't been told to trust. The `Stop` hook replies `{}` because Codex expects JSON (or nothing) from it. `PostToolUse` puts the session back to busy after you approve a request. `PreToolUse` is only for gestures; drop it if you don't want them.
+Then run `/hooks` inside Codex and trust the new hooks; Codex skips hooks it hasn't been told to trust (without trust, `codex exec` ran none of them). Checked: `UserPromptSubmit`, `PostToolUse`, `Stop` (with the `{}` reply), `SessionEnd` and `PreToolUse` with matcher `Bash` (fired for a shell command, `--signal event shell --from codex`). The `Stop` hook replies `{}` because Codex expects JSON (or nothing) from it. `PostToolUse` puts the session back to busy after you approve a request. `PreToolUse` is only for gestures; drop it if you don't want them.
 
 | Codex hook | Dot Buddy |
 |---|---|
@@ -142,7 +127,7 @@ Then run `/hooks` inside Codex and trust the new hooks; Codex skips hooks it has
 
 ## Gemini CLI
 
-**Untested.** Gemini CLI reads hooks from `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project). Each hook gets JSON on stdin with `session_id` and `cwd`, and must print only JSON on stdout, so every command below replies `{}`. Merge this into your settings:
+**Tested 2026-11-19, Gemini CLI 0.69.0**, with `HOME` in a scratch folder, `GEMINI_API_KEY=fake`, `GOOGLE_GEMINI_BASE_URL` pointing at a local mock server and `security.auth.selectedType` set to `gemini-api-key`. Without any auth setting, Gemini CLI exits before it runs a single hook, so this can't be tried "logged out". Fired with the config below: `BeforeAgent`, `AfterTool`, `AfterAgent`, `SessionEnd` and `BeforeTool` (matcher `run_shell_command`, via `~/.local/bin/dotbuddy-hook`; `~` was expanded). Gemini accepted the `{}` replies. Not exercised: `Notification` (needs an interactive permission prompt) and the other `BeforeTool` matchers. Gemini CLI reads hooks from `~/.gemini/settings.json` (user) or `.gemini/settings.json` (project). Each hook gets JSON on stdin with `session_id` and `cwd`, and must print only JSON on stdout, so every command below replies `{}`. Merge this into your settings:
 
 ```json
 {
@@ -172,7 +157,7 @@ Then run `/hooks` inside Codex and trust the new hooks; Codex skips hooks it has
 }
 ```
 
-Gemini CLI runs hooks with a reduced environment. If they don't fire, replace `~` with your full home path. `/hooks` inside Gemini CLI lists and toggles them.
+Gemini CLI runs hooks with a reduced environment. `~` worked in 0.69.0, but if the hooks don't fire, replace it with your full home path. `/hooks` inside Gemini CLI lists and toggles them.
 
 | Gemini CLI hook | Dot Buddy |
 |---|---|
@@ -184,7 +169,7 @@ Gemini CLI runs hooks with a reduced environment. If they don't fire, replace `~
 
 ## Cursor
 
-**Untested.** Cursor reads user hooks from `~/.cursor/hooks.json`. Each hook gets JSON on stdin with `conversation_id`. Cursor has no hook for "waiting for approval" that can't block, so there is no `ask` here.
+**Untested.** Cursor is a GUI app that needs an account, so only the helper was run against a `conversation_id` / `workspace_roots` payload (see above). Cursor reads user hooks from `~/.cursor/hooks.json`. Each hook gets JSON on stdin with `conversation_id`. Cursor has no hook for "waiting for approval" that can't block, so there is no `ask` here.
 
 ```json
 {
@@ -226,7 +211,7 @@ Cursor isn't a terminal, so clicking a Cursor bubble can't find a tab. Make it b
 
 ## opencode
 
-**Untested.** For opencode V2. A plugin subscribes to the server's event stream and calls Dot Buddy. Save as `~/.config/opencode/plugins/dot-buddy.ts`:
+**Tested 2026-11-19, opencode V2 (`@opencode/cli` 2.3.2)**, with `HOME` and `XDG_*` in a scratch folder and a local OpenAI-compatible mock server. The plugin below loaded from `~/.config/opencode/plugins/`, the `execute.before` hook fired for a shell command (the tool name is `shell`) and the status events fired. Not exercised: `session.deleted`, the other tool names (`edit`, `read`, `web`...) and subagents. For opencode V2. A plugin subscribes to the server's event stream and calls Dot Buddy. Save as `~/.config/opencode/plugins/dot-buddy.ts`:
 
 ```ts
 import { Plugin } from "@opencode/plugin"
@@ -253,13 +238,18 @@ export default Plugin.define({
     const controller = new AbortController()
     void (async () => {
       for await (const event of ctx.event.subscribe({
-        types: ["session.status", "permission.asked", "permission.replied", "session.deleted"],
+        types: [
+          "session.execution.started", "session.execution.succeeded", "session.execution.failed", "session.execution.interrupted",
+          "permission.asked", "permission.replied", "session.deleted",
+        ],
         signal: controller.signal,
       })) {
-        if (event.type === "session.status") report(event.data.sessionID, event.data.status.type === "idle" ? "idle" : "busy")
-        else if (event.type === "permission.asked") report(event.data.sessionID, "ask")
-        else if (event.type === "permission.replied") report(event.data.sessionID, "busy")
-        else if (event.type === "session.deleted") report(event.data.sessionID, "end")
+        const id = event.data.sessionID
+        if (event.type === "session.execution.started") report(id, "busy")
+        else if (event.type.startsWith("session.execution.")) report(id, "idle") // succeeded, failed, interrupted
+        else if (event.type === "permission.asked") report(id, "ask")
+        else if (event.type === "permission.replied") report(id, "busy")
+        else if (event.type === "session.deleted") report(id, "end")
       }
     })()
     return () => controller.abort()
@@ -269,17 +259,17 @@ export default Plugin.define({
 
 | opencode event | Dot Buddy |
 |---|---|
-| `session.status` with status `busy` or `retry` | `--report opencode <sessionID> busy` |
-| `session.status` with status `idle` | `--report … idle` |
+| `session.execution.started` | `--report opencode <sessionID> busy` |
+| `session.execution.succeeded` / `failed` / `interrupted` | `--report … idle` |
 | `permission.asked` / `permission.replied` | `--report … ask` / `busy` |
 | `session.deleted` | `--report … end` |
 | tool hook `execute.before` | `--signal event shell` / `edit` / `read` / `web` |
 
-Subagent sessions report their own status, so they may show up as extra sessions. Sessions aren't deleted when you quit opencode; they drop off 30 minutes after going idle. opencode V1 plugins use a different API (an `event` hook with `session.idle`); this file won't load there.
+Subagent sessions report their own status, so they may show up as extra sessions. Sessions aren't deleted when you quit opencode; they drop off 30 minutes after going idle. opencode V1 plugins (`opencode-ai` 1.x, including 1.19.6, the current npm `latest`) use a different API (an `event` hook with `session.idle`); this file doesn't load there (no call was made in a 1.19.6 run). In V2 2.3.2 a full run emitted no `session.status` event, so don't use it for busy/idle. A permission prompt emitted `permission.asked`, then `permission.replied`.
 
 ## Aider
 
-**Untested.** Aider has no lifecycle hooks, but it can run a command when it finishes a reply and waits for input. `--notifications-command` runs only together with `--notifications`, through a shell, so `$PPID` there is the Aider process:
+**Tested 2026-11-19, Aider 0.86.2**, in a pseudo-terminal with `HOME` in a scratch folder and a local OpenAI-compatible mock server (`--model openai/mockmodel`, `OPENAI_API_BASE` on 127.0.0.1). The command below, unchanged, ran once after the reply and reported `idle` with `--pid` equal to the Aider process and the name `aider · <folder>`. Not exercised: `--message` runs. Aider has no lifecycle hooks, but it can run a command when it finishes a reply and waits for input. `--notifications-command` runs only together with `--notifications`, through a shell, so `$PPID` there is the Aider process:
 
 ```bash
 aider --notifications --notifications-command \

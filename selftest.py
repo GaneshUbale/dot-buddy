@@ -227,6 +227,20 @@ with tempfile.TemporaryDirectory() as packs:
     r = subprocess.run([BIN, "--typing-preview", tp], capture_output=True, text=True, timeout=20)
     check("타이핑 말풍선", (r.returncode, os.path.exists(tp) and os.path.getsize(tp) > 500), (0, True))
 
+# dotbuddy-hook (built in): reads the agent's hook JSON, reports the session, prints the reply, always exits 0
+with tempfile.TemporaryDirectory() as td:
+    env = {**os.environ, "DOTBUDDY_SESSIONS": td, "DOTBUDDY_PID": str(os.getpid())}
+    def hook(payload, *args):
+        return subprocess.run([BIN, "--hook", *args], input=payload, capture_output=True, text=True, timeout=10, env=env)
+    r = hook('{"session_id":"s1","cwd":"/work/proj/"}', "codex", "session_id", "busy", "{}")
+    got = json.load(open(os.path.join(td, "codex-s1.json"))) if os.path.exists(os.path.join(td, "codex-s1.json")) else {}
+    check("hook — report", (r.returncode, r.stdout.strip(), got.get("status"), got.get("name"), got.get("pid")), (0, "{}", "busy", "codex · proj", os.getpid()))
+    r = hook('{"workspace_roots":["/a/web"],"conversation_id":"c1"}', "cursor", "conversation_id", "idle")
+    check("hook — nested path", json.load(open(os.path.join(td, "cursor-c1.json"))).get("name") if os.path.exists(os.path.join(td, "cursor-c1.json")) else None, "cursor · web")
+    check("hook — junk input still exits 0", (hook("not json", "x", "session_id", "busy").returncode, hook("", "x").returncode), (0, 0))
+    hook('{"session_id":"s1"}', "codex", "session_id", "end")
+    check("hook — end removes", os.path.exists(os.path.join(td, "codex-s1.json")), False)
+
 # Notices: three or more "done" at once merge into one bubble; questions stay separate
 def merged(spec):
     return subprocess.run([BIN, "--merge-notices", spec], capture_output=True, text=True, timeout=10, env={**os.environ, "DOTBUDDY_LANG": "en"}).stdout.split("\n")[:2]

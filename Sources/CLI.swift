@@ -38,7 +38,7 @@ func runHook(_ args: [String]) -> Never {
     call(["--signal", "event", String(action.dropFirst(6)), "--from", tool])
   } else if ["busy", "idle", "ask", "end"].contains(action), let id = jsonPath(j, key) {
     var a = ["--report", tool, id, action]
-    if let dir = jsonPath(j, "cwd") ?? jsonPath(j, "workspace_roots.0") { a += ["--name", "\(tool) · \((dir as NSString).lastPathComponent)"] }
+    if let dir = jsonPath(j, "cwd") ?? jsonPath(j, "workspace_roots.0"), case let folder = (dir as NSString).lastPathComponent, folder != "/" { a += ["--name", "\(tool) · \(folder)"] }   // "/x/proj/" → proj; "/" → no name
     if let pid = ProcessInfo.processInfo.environment["DOTBUDDY_PID"], Int32(pid) ?? 0 > 0 { a += ["--pid", pid] }
     call(a)
   }
