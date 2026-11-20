@@ -122,7 +122,7 @@ func relaunch(_ path: String = Bundle.main.bundlePath) {
 func describe(_ e: UpdateError) -> String {
   switch e {
   case .network(let s): return T("인터넷 문제(\(s))", "network problem (\(s))")
-  case .noAsset: return T("새 판에 서명된 파일이 없어요", "the release has no signed download")
+  case .noAsset: return T("새 업데이트에 서명된 파일이 없어요", "the release has no signed download")
   case .badSignature: return T("서명이 맞지 않아요", "the signature doesn't match")
   case .badBundle(let s): return T("받은 앱이 이상해요(\(s))", "the downloaded app looks wrong (\(s))")
   case .notWritable(let p): return T("\(p) 에 쓸 수 없어요", "can't write to \(p)")

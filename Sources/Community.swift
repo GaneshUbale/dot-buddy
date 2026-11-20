@@ -29,7 +29,7 @@ enum CommunityError: Error { case network(String), bad(String), exists(String) }
 func describe(_ e: CommunityError) -> String {
   switch e {
   case .network(let s): return T("인터넷 문제(\(s))", "network problem (\(s))")
-  case .bad(let s): return T("받은 꾸러미가 이상해요(\(s))", "the pack looks wrong (\(s))")
+  case .bad(let s): return T("받은 캐릭터 파일이 이상해요(\(s))", "the pack looks wrong (\(s))")
   case .exists(let s): return T("캐릭터 폴더에 이미 \(s) 가 있어요(직접 넣은 것 같아요)", "your characters folder already has \(s) (one you added yourself)")
   }
 }
