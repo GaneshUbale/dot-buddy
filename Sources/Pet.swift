@@ -705,6 +705,7 @@ final class Pet: NSObject, NSMenuDelegate {
   }
   /// Dive into the floor, then drop and land from the top of the screen above the destination (for high windows or another monitor)
   var diveT0 = 0.0, dropIn = false, migrating = false
+  var pocketSince = 0.0, pocketFloor = ""
   var upSince = 0.0, downSince = 0.0, upLimit = 60.0                             // When up on a window or widget / when down on the floor / limit for staying up
   var mouseScr = -1, mouseScrSince = 0.0, lastScrCheck = 0.0, nextMigrate = 0.0
   var screenLocked = false, escapes: [Double] = []
@@ -911,6 +912,19 @@ final class Pet: NSObject, NSMenuDelegate {
         floorID = nil; act = .sneak(min(max(pos.x, n.x0 + halfW), n.x1 - halfW), n.id)
       } else if let to = nearMe(floors).filter({ $0.id != floorID && !$0.id.hasSuffix(":x") && dist($0) > 40 }).min(by: { dist($0) < dist($1) }) { if dist(to) <= 160 { hop(to: to) } else if !leap(to: to) { dive(to: to) } }
     }
+    // Boxed into a sliver of floor (a window reaching past the screen bottom leaves only a gap at the edge): after 12 seconds there, get out.
+    // Seen 2026-11-20: a window covered all of the bottom-left floor but 86pt and the pet stayed in that gap for a long time
+    if let f = floor, f.kind == .base, f.x1 - f.x0 < halfW * 2 + 60, !inTransit {
+      if pocketSince == 0 || pocketFloor != f.id { pocketSince = t; pocketFloor = f.id }
+      else if t - pocketSince > 12 {
+        pocketSince = t
+        let others = nearMe(floors).filter { $0.id != f.id && !$0.id.hasSuffix(":x") && $0.x1 - $0.x0 >= halfW * 2 + 20 }
+        let front = scene.order.first.map { "w\($0)" }
+        if let to = others.first(where: { $0.owner == front }) ?? others.filter({ $0.kind == .base }).max(by: { ($0.x1 - $0.x0) < ($1.x1 - $1.x0) }) ?? others.min(by: { dist($0) < dist($1) }) {
+          if !leap(to: to) { dive(to: to) }
+        }
+      }
+    } else { pocketSince = 0 }
     profile("ride") { stepRide(t) }
     stepBanner(t)
     if t - lastMoodCheck > 5 { lastMoodCheck = t; applyMood() }                       // Mood that changes with time, being away, or signal expiry
