@@ -610,6 +610,10 @@ final class Pet: NSObject, NSMenuDelegate {
     let cands = nearMe(floors).filter { $0.id != here.id && !$0.id.hasSuffix(":x") && near($0) && ($0.x1 - $0.x0) >= halfW * 2 + 20
       && (!wantDown || $0.y < here.y - 20) && (blocked[$0.owner] ?? 0) < now }.shuffled()
     let order = cands.filter { !recentOwners.contains($0.owner) && $0.owner != here.owner } + cands.filter { recentOwners.contains($0.owner) || $0.owner == here.owner }
+    // A window floating high above (its bottom edge far off the floor, too high to climb or leap): now and then dive in and drop onto it from above.
+    // Checked first, because walking to a nearer spot almost always succeeds; without this the pet stayed on the floor and the Dock for tens of minutes
+    // when every nearby window floated above the Dock (measured 2026-11-20)
+    if let f = order.first(where: { $0.kind == .window && $0.y - pos.y > 650 }), Double.random(in: 0...1) < 0.35 { dive(to: f); return true }
     if order.prefix(6).contains(where: { goVia($0, dive: false) }) { return true }
     // Same screen's floor, but cut off by a window that reaches down to the Dock or floor: sneak behind it and come out on the other side
     if here.kind == .base, let f = order.first(where: { $0.kind == .base && $0.owner == here.owner && min(abs($0.x0 - pos.x), abs($0.x1 - pos.x)) < 600 }) {   // Walking hidden behind is limited to about 6 seconds
@@ -955,10 +959,17 @@ final class Pet: NSObject, NSMenuDelegate {
         // Entering a window's side from the side: thud, bounce back out
         let bodyTop = ny + 14 * scale
         if passThru { pos = CGPoint(x: nx, y: ny) }                                  // Passing behind: falls straight down without catching on anything
-        else if abs(vel.dx) > 80, !handFall, let w = scene.walls.first(where: { ny < $0.maxY - 4 && bodyTop > $0.minY && (pos.x <= $0.minX - halfW * 0.5) != (nx <= $0.minX - halfW * 0.5) || ny < $0.maxY - 4 && bodyTop > $0.minY && (pos.x >= $0.maxX + halfW * 0.5) != (nx >= $0.maxX + halfW * 0.5) }) {
+        else if abs(vel.dx) > 80, let w = scene.walls.enumerated().first(where: { (i, w) in
+          let crosses = ny < w.maxY - 4 && bodyTop > w.minY && ((pos.x <= w.minX - halfW * 0.5) != (nx <= w.minX - halfW * 0.5) || (pos.x >= w.maxX + halfW * 0.5) != (nx >= w.maxX + halfW * 0.5))
+          guard crosses else { return false }
+          if !handFall { return true }
+          // Thrown: only a side you can see. The spot where it would hit must not be covered by a window in front (hitting hidden sides sent a throw to the left off to the right, 2026-11-18)
+          let hit = CGPoint(x: nx < w.midX ? w.minX + 2 : w.maxX - 2, y: ny + 7 * scale)
+          return !scene.walls[..<i].contains { $0.contains(hit) }
+        })?.element {
           let fromLeft = pos.x < w.midX
           pos = CGPoint(x: fromLeft ? w.minX - halfW * 0.5 - 1 : w.maxX + halfW * 0.5 + 1, y: ny)
-          vel.dx = -vel.dx * 0.45; bonkUntil = t + 0.45
+          vel.dx = -vel.dx * (handFall ? 0.25 : 0.45); bonkUntil = t + 0.45           // A thrown pet stops dead against the side and slides down it (only a small bounce back)
           if chatty > 0, showing == nil, t - lastChat > 1.2 { say(line(.bonk, ctx), t) }
         } else if let w = scene.walls.enumerated().first(where: { (i, w) in                // Collisions only with windows whose spot is visible (top edges and sides of windows covered by a front window are passed through; this caused the catching, stuttering look)
           let b = CGPoint(x: nx, y: ny + 7 * scale)
