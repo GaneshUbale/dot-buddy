@@ -191,8 +191,22 @@ final class Pet: NSObject, NSMenuDelegate {
     for w in [window, noticeWin, chatWin, badgeWin] as [NSWindow?] { w?.animationBehavior = .none }   // Turn off the system window animation when the speech bubble appears or disappears (it wakes at every display cycle)
     resize()
     let m = NSEvent.mouseLocation
-    let vf = (NSScreen.screens.first { $0.frame.contains(m) } ?? NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)   // With the lid closed there is no screen
-    pos = CGPoint(x: vf.midX, y: vf.maxY - 80)
+    let scr = NSScreen.screens.first { $0.frame.contains(m) } ?? NSScreen.main ?? NSScreen.screens.first
+    let vf = scr?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)   // With the lid closed there is no screen
+    var x = vf.midX                                                               // Drop in from the top, but not onto the Dock: falling there lands behind the bar
+    if let f = scr?.frame, let d = dockEstimate(screensNow()), f.contains(CGPoint(x: d.midX, y: d.midY)), d.width > d.height, x > d.minX - 60, x < d.maxX + 60 {   // a bottom Dock under the drop point
+      x = d.minX - vf.minX > vf.maxX - d.maxX ? max(vf.minX + 60, d.minX - 90) : min(vf.maxX - 60, d.maxX + 90)
+    }
+    pos = CGPoint(x: x, y: vf.maxY - 80)
+    if let p = UD.array(forKey: "place") as? [Double], p.count == 3, Date().timeIntervalSince1970 - p[2] < 300,       // Relaunched a moment ago (language change, update): stay where it was
+       NSScreen.screens.contains(where: { $0.frame.insetBy(dx: 1, dy: 1).contains(CGPoint(x: p[0], y: p[1] + 1)) }) {
+      pos = CGPoint(x: p[0], y: p[1])
+    }
+    UD.removeObject(forKey: "place")
+    NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
+      guard let self else { return }
+      UD.set([Double(self.pos.x), Double(self.pos.y), Date().timeIntervalSince1970], forKey: "place"); UD.synchronize()
+    }
     if let tf = terminalFamily() { FONT_FAMILIES.append(tf) }
     fontFamily = FONT_FAMILIES.firstIndex { $0.id == (UD.string(forKey: "fontFamily") ?? "neodgm") } ?? 0   // Default: Neo Dunggeunmo
     TEXT_SIZE = noticeScale - 1; FONT_FAMILY = fontFamily; updateRenderM()
