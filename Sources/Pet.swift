@@ -478,8 +478,9 @@ final class Pet: NSObject, NSMenuDelegate {
           let cx = min(max(pos.x, n.x0 + halfW), n.x1 - halfW)
           if abs(cx - pos.x) > 2 && coveringWindow(on: n) != nil && !coverEscape(from: n) { floorID = nil; act = .sneak(cx, n.id); schedule(1.0 / 24) }   // Slightly overlapped by a front window: climb onto the covering window or hop sideways, otherwise trot
         }
-      } else if let n = floors.first(where: { $0.owner == o.owner && abs($0.y - o.y) > 2 && pos.x >= $0.x0 && pos.x <= $0.x1 }) {
-        floorID = n.id; pos.y = n.y                                              // Moving the window up or down carries the pet along
+      } else if let n = floors.first(where: { $0.owner == o.owner && abs($0.y - o.y) > 2 && pos.x >= $0.x0 && pos.x <= $0.x1 }),
+                NSEvent.pressedMouseButtons & 1 != 0 || abs(n.y - o.y) < 150 || !(n.rect.width < o.rect.width * 0.8 || n.rect.height < o.rect.height * 0.8) {
+        floorID = n.id; pos.y = n.y                                              // Moving the window up or down carries the pet along (not while it shrinks into the Dock: then it falls, below)
       } else if let n = floors.filter({ $0.owner == o.owner && abs($0.y - pos.y) < 3 && !$0.id.hasSuffix(":x") }).min(by: { abs($0.mid - pos.x) < abs($1.mid - pos.x) }) {
         if !coverEscape(from: n) { floorID = nil; act = .sneak(min(max(pos.x, n.x0 + halfW), n.x1 - halfW), n.id); schedule(1.0 / 24) }   // A window came to the front and covered it: walk out to where it is visible
       } else if !coverEscape(from: nil) { floorID = nil; vel = .init(dx: 0, dy: 0); act = .fall }   // The whole top edge is covered: go onto the covering window or to a visible spot; if impossible, fall
@@ -1235,6 +1236,13 @@ final class Pet: NSObject, NSMenuDelegate {
     }
     let r = CGRect(x: b["X"] ?? 0, y: H - (b["Y"] ?? 0) - (b["Height"] ?? 0), width: b["Width"] ?? 0, height: b["Height"] ?? 0)
     guard rideOwner == o else { rideOwner = o; rideRect = r; return }
+    // Shrinking fast with no mouse button down: being minimized (⌘M) or hidden, the genie animation pulls the window into the Dock.
+    // Don't ride it down there (that looked like a teleport); let go and fall from where it was
+    if dragMouse == nil, NSEvent.pressedMouseButtons & 1 == 0, r.width < rideRect.width * 0.8 || r.height < rideRect.height * 0.8 {
+      rideOwner = ""; floorID = nil; vel = .init(dx: 0, dy: 0); act = .fall; startleUntil = t + 0.7
+      floors.removeAll { $0.owner == o }; lastFloors = 0; sceneActiveUntil = t + 3
+      return
+    }
     let dx = r.minX - rideRect.minX, dy = r.maxY - rideRect.maxY
     if dragMouse != nil {                                                            // Dragging with the mouse: the mouse already moved it; queries arrive late, so correct only when far off
       if dx != 0 || dy != 0 { rideUntil = t + 0.6 }
