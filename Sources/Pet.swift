@@ -609,11 +609,14 @@ final class Pet: NSObject, NSMenuDelegate {
     let near = { (f: Floor) -> Bool in self.dist(f) < 1400 || (f.y - self.pos.y <= Pet.CLIMB_FAR && abs(min(max(self.pos.x, f.x0), f.x1) - self.pos.x) < 1000) }   // A tall window was left out when measured by straight distance as too far; include it if it is close sideways and the height is climbable
     let cands = nearMe(floors).filter { $0.id != here.id && !$0.id.hasSuffix(":x") && near($0) && ($0.x1 - $0.x0) >= halfW * 2 + 20
       && (!wantDown || $0.y < here.y - 20) && (blocked[$0.owner] ?? 0) < now }.shuffled()
-    let order = cands.filter { !recentOwners.contains($0.owner) && $0.owner != here.owner } + cands.filter { recentOwners.contains($0.owner) || $0.owner == here.owner }
+    var order = cands.filter { !recentOwners.contains($0.owner) && $0.owner != here.owner } + cands.filter { recentOwners.contains($0.owner) || $0.owner == here.owner }
+    // The window you're working in (front-most) goes first, unless the pet was just there: it likes to be where you are
+    let front = scene.order.first.map { "w\($0)" }
+    if let i = order.firstIndex(where: { $0.owner == front }), !recentOwners.contains(order[i].owner), order[i].owner != here.owner { order.insert(order.remove(at: i), at: 0) }
     // A window floating high above (its bottom edge far off the floor, too high to climb or leap): now and then dive in and drop onto it from above.
     // Checked first, because walking to a nearer spot almost always succeeds; without this the pet stayed on the floor and the Dock for tens of minutes
     // when every nearby window floated above the Dock (measured 2026-11-20)
-    if let f = order.first(where: { $0.kind == .window && $0.y - pos.y > 650 }), Double.random(in: 0...1) < 0.35 { dive(to: f); return true }
+    if let f = order.first(where: { $0.kind == .window && $0.y - pos.y > 650 }), Double.random(in: 0...1) < (f.owner == front ? 0.6 : 0.3) { dive(to: f); return true }
     if order.prefix(6).contains(where: { goVia($0, dive: false) }) { return true }
     // Same screen's floor, but cut off by a window that reaches down to the Dock or floor: sneak behind it and come out on the other side
     if here.kind == .base, let f = order.first(where: { $0.kind == .base && $0.owner == here.owner && min(abs($0.x0 - pos.x), abs($0.x1 - pos.x)) < 600 }) {   // Walking hidden behind is limited to about 6 seconds
