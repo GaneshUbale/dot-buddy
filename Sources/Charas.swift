@@ -217,7 +217,7 @@ func loadCharas(in dir: URL) -> [Chara] {
     return Chara(id: id, name: (m["names"] as? [String: String])?[LANG.rawValue] ?? m["name"] as? String ?? fallbackName, kind: .custom, body: body, light: body, shade: body, line: line,
                  accent: rgba("#f08f9a"), sprite: Sprite(w: w, h: h, px: px, eyes: eyes, motions: motions, bodyH: m["height"] as? Int ?? h))
   }
-  let items = ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey])) ?? []).sorted { $0.path < $1.path }
+  let items = ((try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []).sorted { $0.path < $1.path }   // hidden: a community pack still downloading (.incoming-…)
   for f in items {
     let name = f.deletingPathExtension().lastPathComponent
     if (try? f.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {

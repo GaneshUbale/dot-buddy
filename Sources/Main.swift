@@ -18,7 +18,8 @@
 //                            call it from that agent's tool hooks and the pet gestures and mutters like it does for Claude
 //                            (--signal also takes say|done|ask|work|cheer|poke [text] [--from NAME])
 //   DotBuddy --preview a.png character x pose sample sheet
-//   DotBuddy --demo-gif a.gif [hero|characters]   README demo animation, drawn offscreen
+//   DotBuddy --demo-gif a.gif [hero|characters|chara:<id>]   README demo animation / one character's preview, drawn offscreen
+//   DotBuddy --community-list · --community-install <id> · --community-preview a.png   community characters (DOTBUDDY_COMMUNITY_BASE changes the source)
 //   DotBuddy --install-cli [dir]  link dotbuddy and dotbuddy-hook into ~/.local/bin · --hook TOOL ID_KEY ACTION [REPLY] (= dotbuddy-hook, reads hook JSON on stdin)
 //   DotBuddy --check-update  latest GitHub release vs this build (JSON) · --verify-update <zip> <sig> · --install-update <app path>
 import AppKit
@@ -225,7 +226,7 @@ struct Main {
       print(n.title); print(rest.map(\.title).joined(separator: ",")); exit(0)
     }
     if a.count == 4 && a[1] == "--version-newer" { exit(versionNewer(a[2], than: a[3]) ? 0 : 1) }
-    if a.count >= 3 && a[1] == "--demo-gif" {                                      // README demo animation: --demo-gif <out.gif> [hero|characters]
+    if a.count >= 3 && a[1] == "--demo-gif" {                                      // README demo animation: --demo-gif <out.gif> [hero|characters|chara:<id>]
       exit(demoGIF(a[2], scene: a.count >= 4 ? a[3] : "hero") ? 0 : 1)
     }
     if a.count >= 3 && a[1] == "--notice-preview" {
@@ -336,6 +337,30 @@ struct Main {
       ALL_CHARAS = mergeCharas(loadCustomCharas())
       guard exportCodexPet(findChara(a[3]), to: URL(fileURLWithPath: a[2])) else { print(T("못 만들었어요", "Could not create it")); exit(1) }
       print(a[2]); return
+    }
+    if a.count >= 2 && a[1] == "--community-list" {                               // the community character list, as JSON (talks to GitHub, or DOTBUDDY_COMMUNITY_BASE)
+      switch communityIndex() {
+      case .failure(let e): print(describe(e)); exit(1)
+      case .success(let ps):
+        let list = ps.map { p -> [String: Any] in ["id": p.id, "name": p.shownName, "author": p.author, "license": p.license, "files": p.files.count, "state": "\(communityState(p))"] }
+        if let d = try? JSONSerialization.data(withJSONObject: list, options: [.sortedKeys]) { print(String(decoding: d, as: UTF8.self)) }
+        return
+      }
+    }
+    if a.count >= 3 && a[1] == "--community-preview" {                            // the More Characters window drawn offscreen at 2x: --community-preview <out.png>
+      _ = NSApplication.shared
+      let w = CommunityWindow { _, _ in }; w.window.appearance = NSAppearance(named: .aqua); w.show()
+      let end = Date().addingTimeInterval(4); while Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.1)) }   // list and previews arrive asynchronously
+      guard let v = w.window.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) else { exit(1) }
+      v.cacheDisplay(in: v.bounds, to: rep)
+      try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: a[2])); exit(0)
+    }
+    if a.count >= 3 && a[1] == "--community-install" {                            // --community-install <id>: download one community pack into the characters folder
+      guard case .success(let ps) = communityIndex(), let p = ps.first(where: { $0.id == a[2] }) else { print(T("목록에 \(a[2]) 가 없어요", "\(a[2]) isn't in the list")); exit(1) }
+      switch installCommunityPack(p) {
+      case .success(let id): print(id); return
+      case .failure(let e): print(describe(e)); exit(1)
+      }
     }
     if a.count >= 2 && a[1] == "--charas" {
       // loaded characters and motions (frame counts) — for checking packs

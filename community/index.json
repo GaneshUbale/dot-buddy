@@ -1,0 +1,189 @@
+{
+ "version": 1,
+ "packs": [
+  {
+   "id": "teacup",
+   "name": "Teacup",
+   "author": "doldoldol21",
+   "license": "CC-BY-4.0",
+   "description": "A little teacup that steams while it waits.",
+   "files": [
+    {
+     "name": "ask.png",
+     "sha256": "d47618a5152df6bd76ae356d5963b65c6cea3f373b3d0b675f86946e98fcef96",
+     "size": 337
+    },
+    {
+     "name": "blink.png",
+     "sha256": "1689f532c0717a9853ea81910ae8ba12eb3a32708790f4732390b059aa219f75",
+     "size": 233
+    },
+    {
+     "name": "chara.json",
+     "sha256": "786814d95b1cb91f45954d636ebd75534ac3f1d46254b23011b19127c4be2fdd",
+     "size": 566
+    },
+    {
+     "name": "cheer.png",
+     "sha256": "a3cf0afa508f89f18019b6b08473a052d1512cfc65c3093b1db6a10595d04dce",
+     "size": 341
+    },
+    {
+     "name": "climb.png",
+     "sha256": "ea340b23283238bbe1957535780814836363ce551a37c16e28dc79c58b1eb434",
+     "size": 346
+    },
+    {
+     "name": "crouch.png",
+     "sha256": "e70e0b1d901d2fc77ea527fc46802fe59c653b3179a0ca4d39e409268d13c443",
+     "size": 219
+    },
+    {
+     "name": "dive.png",
+     "sha256": "944bce95e815d56251e68c3616135f6d781b5dff458648c50638620d37e44c59",
+     "size": 224
+    },
+    {
+     "name": "dizzy.png",
+     "sha256": "211338565f23eb83186f35e308cb1f34025696102706044f76fac06907e73cd1",
+     "size": 345
+    },
+    {
+     "name": "drag.png",
+     "sha256": "16a1b3eabc6f98483434045401c856e9b6ef6aed1599dd134414904f0d12e10a",
+     "size": 350
+    },
+    {
+     "name": "fall.png",
+     "sha256": "bc7b4e43fe0a1751201953e8c7c9187bd92a43f5243586ffee578a62b292f704",
+     "size": 252
+    },
+    {
+     "name": "hang.png",
+     "sha256": "011f7a8e240028ba979655c5988102e8d85dd7e985d14518f85982559805c24d",
+     "size": 334
+    },
+    {
+     "name": "happy.png",
+     "sha256": "ca4d742a89dea63ced444ddeddbf79f8268b3b698e69d58975c5d4031dd1003e",
+     "size": 253
+    },
+    {
+     "name": "hum.png",
+     "sha256": "5e2c0678a5ad25b0847a5edf0d7473ff36ba53bbb03daca207065e3019b9ac68",
+     "size": 353
+    },
+    {
+     "name": "idle.png",
+     "sha256": "648ad1ffc953bc33010f133ef261de3deec6dee92ffaa1cbc7c34a5976bdb496",
+     "size": 344
+    },
+    {
+     "name": "jump.png",
+     "sha256": "00ed1c7b04dce2b4e012fa54cb704d665b7431fcfdb563f758fb016cb0334fef",
+     "size": 243
+    },
+    {
+     "name": "party.png",
+     "sha256": "dede58f3d89862cd933cf70f223d97ccaab823ef22e1d428965309a3ede4fa4c",
+     "size": 427
+    },
+    {
+     "name": "peek.png",
+     "sha256": "f71b0c0769793fac634c3b629f704da3e341b1d40f874e65a3c6993ef1103eb0",
+     "size": 244
+    },
+    {
+     "name": "petted.png",
+     "sha256": "acf7249b85317e146539f23e583d057814e188b9034c055c8a7a8187067e00b2",
+     "size": 235
+    },
+    {
+     "name": "pout.png",
+     "sha256": "91a32575ddb2b222fbfb0ca9f9b9b2620aa728d8d1fb0d413f29cf7198e37a74",
+     "size": 241
+    },
+    {
+     "name": "roll.png",
+     "sha256": "3710d84ff51436ef6c49a9c4384141142ccad0f930934f3a6e2dbb5b82d076de",
+     "size": 1201
+    },
+    {
+     "name": "shy.png",
+     "sha256": "0fd0c6cdb137f32768890b190ddb5f4a1c899cec81cb4f13c400fafb5b677e67",
+     "size": 235
+    },
+    {
+     "name": "sit.png",
+     "sha256": "1e20c664154d98af4453c37d7b47d563ab16909f1d0303652ef843067b9e8531",
+     "size": 235
+    },
+    {
+     "name": "sleep.png",
+     "sha256": "1b303ee2662e081b7da077de0842d5e9124146a89fe6936701bbb04836e517ad",
+     "size": 282
+    },
+    {
+     "name": "sneak.png",
+     "sha256": "fa103644c4abbf1ec6939a2a16f57bbf50c1d544efc5dc0eabf2b48415e5842e",
+     "size": 351
+    },
+    {
+     "name": "spin.png",
+     "sha256": "c39e815ebead38bf159689efd690d2f92ac0acfead62d049604d75cd7e41ddd8",
+     "size": 552
+    },
+    {
+     "name": "squish.png",
+     "sha256": "49adeb1c90eea14627b57a76d149a8cccfa52e5689bde3d39d7f0b131fb343a1",
+     "size": 222
+    },
+    {
+     "name": "stalk.png",
+     "sha256": "38431e1293902670edddb54f2fad90f1174d7bfe89923f3c70250b32d903192f",
+     "size": 335
+    },
+    {
+     "name": "startle.png",
+     "sha256": "b9f63a4467c07e3fcdfe4fe421c471811e3f082d0eadca0d09756dafa2b72f93",
+     "size": 264
+    },
+    {
+     "name": "stretch.png",
+     "sha256": "34a5fb851cc8686e02df6f1b7f4edbc75ed4276b20c64ad750241a822c9ca75d",
+     "size": 378
+    },
+    {
+     "name": "talk.png",
+     "sha256": "c7afa4767d58883c712ff8e21086c8b6cafeea24c2101d1f8b03c8477145b86f",
+     "size": 338
+    },
+    {
+     "name": "walk.png",
+     "sha256": "47d463b2aef059c8484ec12bb642876dd7c236368d10533af7325fba94f84984",
+     "size": 411
+    },
+    {
+     "name": "wave.png",
+     "sha256": "6e4921eb03c49527b44fd0bf1b15d881a571cf60b8c1a629a37063395084773a",
+     "size": 330
+    },
+    {
+     "name": "work.png",
+     "sha256": "ac010799b329e67becdd68f2d6de29ee30e9b90d5da22250bd9d6dc5db569c6f",
+     "size": 316
+    },
+    {
+     "name": "yawn.png",
+     "sha256": "86b377a5b63a991b8fb667782c7d2442f2093656592c3694a5b24a81174ec858",
+     "size": 454
+    }
+   ],
+   "names": {
+    "en": "Teacup",
+    "ko": "찻잔"
+   },
+   "preview": "preview.gif"
+  }
+ ]
+}

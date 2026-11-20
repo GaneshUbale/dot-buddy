@@ -1989,7 +1989,7 @@ final class Pet: NSObject, NSMenuDelegate {
     sub(T("캐릭터: \(chara.name)", "Character: \(chara.name)"), ALL_CHARAS.map { ($0.name, $0.id == chara.id, #selector(setChara(_:)), $0.id) })
     if let cm = menu.items.last?.submenu {                                          // Where packs go
       cm.addItem(.separator())
-      for (title, sel) in [(T("캐릭터 폴더 열기", "Open Characters Folder"), #selector(openCharas)), (T("캐릭터 다시 불러오기", "Reload Characters"), #selector(reloadCharas))] {
+      for (title, sel) in [(T("다른 캐릭터 받기…", "More Characters…"), #selector(openCommunity)), (T("캐릭터 폴더 열기", "Open Characters Folder"), #selector(openCharas)), (T("캐릭터 다시 불러오기", "Reload Characters"), #selector(reloadCharas))] {
         let it = NSMenuItem(title: title, action: sel, keyEquivalent: ""); it.target = self; cm.addItem(it)
       }
     }
@@ -2171,6 +2171,19 @@ final class Pet: NSObject, NSMenuDelegate {
   @objc func openCharas() {
     try? FileManager.default.createDirectory(at: CHARAS_DIR, withIntermediateDirectories: true)
     NSWorkspace.shared.open(CHARAS_DIR)
+  }
+  /// Community characters window (talks to GitHub only once it opens)
+  var community: CommunityWindow?
+  @objc func openCommunity() {
+    if let c = community { c.show(); return }
+    let c = CommunityWindow { [weak self] id, name in
+      guard let self else { return }
+      ALL_CHARAS = mergeCharas(loadCustomCharas())
+      self.chara = findChara(id); UD.set(id, forKey: "chara"); self.lastKey = ""; self.resize(); self.cheerUntil = self.now + 1.2
+      self.say(T("\(name) 왔어!", "\(name) is here!"), self.now)
+    }
+    c.onClose = { [weak self] in self?.community = nil }
+    community = c; c.show()
   }
   @objc func reloadCharas() {
     ALL_CHARAS = mergeCharas(loadCustomCharas())

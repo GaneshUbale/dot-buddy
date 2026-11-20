@@ -10,7 +10,7 @@ Only the latest release is supported.
 
 ## What Dot Buddy can do on your Mac
 
-Dot Buddy runs as your user, without elevated privileges, and makes no network connections. These are the parts worth knowing about when you judge a report.
+Dot Buddy runs as your user, without elevated privileges, and makes no network connections except the opt-in update check and the community character list (only while you have **More Characters…** open). These are the parts worth knowing about when you judge a report.
 
 **It runs local commands in two places, both of which you set up yourself:**
 
@@ -30,6 +30,8 @@ Neither path runs commands. Local processes running as you are already trusted a
 - Images and `chara.json` in the character folder, and Codex pets in `~/.codex/pets/`. Image dimensions are checked before decoding, and a Codex pet's `spritesheetPath` may not point outside its own folder.
 
 **Automation permission.** To focus a tab in Terminal or iTerm2, Dot Buddy sends AppleScript to that app, and macOS asks you for permission the first time.
+
+**Community characters.** **More Characters…** reads `community/index.json` from this repo on raw.githubusercontent.com. Installing a pack downloads only the files the index lists for it, each limited to `chara.json` or a `<motion>.png` name and 256 KB, checks every file's size and SHA-256 against the index, writes them to a new folder inside the character folder, and keeps the pack only if the normal loader reads it. A pack never replaces a folder you created yourself. Packs are reviewed before they're merged, but they are not signed: the trust is "whatever is on `main`". A way to make an install write outside the character folder, or to get code to run from a pack, is a vulnerability.
 
 ## Release builds
 

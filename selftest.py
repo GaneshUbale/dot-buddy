@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """dot-buddy self-test — checks `DotBuddy --state` verdicts against fake session files in a temp folder (does not launch the app)."""
 import json
+import shutil
 import os
 import subprocess
 import sys
@@ -275,6 +276,40 @@ cases = [("idle", "hour=12", "weekday=3"), ("idle", "hour=23", "weekday=6"), ("i
 leaks = sorted({l for c in cases for l in en_lines(*c) if hangul.search(l)})
 check("영어 — 한글 안 섞임", leaks, [])
 check("영어 — 문구가 나옴", all(en_lines(*c) for c in cases), True)
+
+# community characters: every pack in community/ passes the checks; installing from the list works, and a file that doesn't
+# match the list, an id with a path in it, or a folder the user made themselves is refused
+r = subprocess.run([sys.executable, "-I", os.path.join(HERE, "scripts", "community.py"), "check", "--app", BIN], capture_output=True, text=True, timeout=120)
+check("커뮤니티 — 꾸러미 검사", (r.returncode, r.stdout.count("FAIL")), (0, 0))
+sys.path.insert(0, os.path.join(HERE, "scripts")); import community as cm
+with tempfile.TemporaryDirectory() as td:
+    bad = os.path.join(td, "Bad_Name"); os.makedirs(bad)
+    open(os.path.join(bad, "idle.png"), "wb").write(b"not a png"); open(os.path.join(bad, "run.sh"), "w").write("echo hi")
+    open(os.path.join(bad, "chara.json"), "w").write('{"name": "x", "license": "GPL"}')
+    errs = " ".join(cm.check_pack(bad, set(cm.motions())))
+    check("커뮤니티 — 나쁜 꾸러미 걸러냄", [k in errs for k in ("folder name", "run.sh", "'author' is required", "'license' must be", "idle.png is not a PNG")], [True] * 5)
+def community(base, charas, *args):
+    env = dict(os.environ, DOTBUDDY_COMMUNITY_BASE=base, DOTBUDDY_CHARAS=charas)
+    r = subprocess.run([BIN, *args], capture_output=True, text=True, timeout=30, env=env)
+    return r.returncode, r.stdout.strip()
+base = "file://" + os.path.join(HERE, "community") + "/"
+ids = [p["id"] for p in json.load(open(os.path.join(HERE, "community", "index.json")))["packs"]]
+with tempfile.TemporaryDirectory() as td:
+    ch = os.path.join(td, "charas")
+    rc, out = community(base, ch, "--community-install", ids[0])
+    st = json.loads(community(base, ch, "--community-list")[1])
+    loaded = [c["id"] for c in json.loads(community(base, ch, "--charas")[1])["charas"]]
+    check("커뮤니티 — 받기", (rc, out, [p["state"] for p in st if p["id"] == ids[0]], "pack:" + ids[0] in loaded), (0, "pack:" + ids[0], ["installed"], True))
+    src = os.path.join(td, "src"); shutil.copytree(os.path.join(HERE, "community"), src)
+    open(os.path.join(src, ids[0], "idle.png"), "ab").write(b"x")                        # changed after the list was made
+    idx = json.load(open(os.path.join(src, "index.json")))
+    idx["packs"].append(dict(idx["packs"][0], id="../escape"))                             # a path in the id: left out of the list
+    json.dump(idx, open(os.path.join(src, "index.json"), "w"))
+    rc2, _ = community("file://" + src + "/", os.path.join(td, "c2"), "--community-install", ids[0])
+    listed = [p["id"] for p in json.loads(community("file://" + src + "/", os.path.join(td, "c2"), "--community-list")[1])]
+    mine = os.path.join(td, "c3"); os.makedirs(os.path.join(mine, ids[0]))
+    rc3, _ = community(base, mine, "--community-install", ids[0])
+    check("커뮤니티 — 안 맞는 파일·경로 id·내 폴더는 거절", (rc2, os.path.exists(os.path.join(td, "c2", ids[0])), "../escape" in listed, rc3, os.listdir(os.path.join(mine, ids[0]))), (1, False, False, 1, []))
 
 if fails:
     print("FAIL\n  " + "\n  ".join(fails))

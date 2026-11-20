@@ -1,0 +1,46 @@
+name: Community characters
+
+# Pull requests: check every pack in community/ and load it in the app.
+# After a merge: draw previews for new or changed packs, then commit community/index.json and the gallery in community/README.md.
+on:
+  pull_request:
+    paths: ["community/**", "scripts/community.py", "Sources/Charas.swift", "Sources/Demo.swift"]
+  push:
+    branches: [main]
+    paths: ["community/**", "scripts/community.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check packs
+    if: github.event_name == 'pull_request'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: APP="$RUNNER_TEMP/Dot.app" FORCE=1 ./build.sh
+      - name: Check
+        run: python3 scripts/community.py check --app bin/DotBuddy
+
+  publish:
+    name: Update the gallery and index
+    if: github.event_name != 'pull_request'
+    runs-on: macos-15
+    permissions:
+      contents: write
+    concurrency: community-publish
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: APP="$RUNNER_TEMP/Dot.app" FORCE=1 ./build.sh
+      - name: Previews, index and gallery
+        run: python3 scripts/community.py build --app bin/DotBuddy
+      - name: Commit
+        run: |
+          git add community
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "community: update previews, index and gallery"
+          git push

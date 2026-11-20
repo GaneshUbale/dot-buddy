@@ -18,6 +18,8 @@ DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"   # or bin/D
 
 Right-click the pet → Character → **Open Characters Folder**. After adding files, choose **Reload Characters** and they show up in the menu right away (no restart).
 
+Characters other people drew are one click away: Character → **More Characters…**. When yours is ready, share it the same way: see [community/README.md](community/README.md#share-your-character).
+
 ## Two formats
 
 | Format | Files | How it moves |

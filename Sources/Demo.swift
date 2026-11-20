@@ -1,5 +1,5 @@
 // Demo GIFs for the README, drawn offscreen with the app's own sprite and bubble renderers (no screen recording, nothing private on screen).
-//   DotBuddy --demo-gif <out.gif> [hero|characters]
+//   DotBuddy --demo-gif <out.gif> [hero|characters|chara:<id>]   (chara:<id> = a short loop of one character, used for community previews)
 import AppKit
 import ImageIO
 import UniformTypeIdentifiers
@@ -89,6 +89,20 @@ func demoGIF(_ out: String, scene: String) -> Bool {
         if m == "work" { p.laptop = Int(t * 6) % 2 }
         st.pet(ch, p, x: 60 + k * 120, footY: st.floorY)
       }
+      frames.append(st.frame())
+    }
+  case let s where s.hasPrefix("chara:"):                                         // one character: idle → walk → work → cheer → wave, for the community gallery
+    let id = String(s.dropFirst(6))
+    guard ALL_CHARAS.contains(where: { $0.id == id }) else { return false }
+    let ch = findChara(id), st = Stage(220, 120, floorY: 12)
+    let acts = ["idle", "walk", "work", "cheer", "wave"], each = 1.6
+    for i in 0..<Int(FPS * each * Double(acts.count)) {
+      let t = Double(i) / FPS, k = Int(t / each), m = acts[k], u = t - Double(k) * each
+      st.backdrop()
+      var p = packPose(ch, m, t)
+      if m == "work" { p.laptop = Int(t * 6) % 2 }
+      let x = m == "walk" ? 80 + Int(60 * u / each) : (k > 1 ? 140 : 80)
+      st.pet(ch, p, x: x, footY: st.floorY)
       frames.append(st.frame())
     }
   default:                                                                       // hero: stroll along a window's top edge → work → done (✓) → question (?)

@@ -1,0 +1,63 @@
+# Community characters
+
+English | [한국어](README.ko.md)
+
+Characters people drew for Dot Buddy. In the app, right-click the pet → Character → **More Characters…**, pick one and choose **Install**. It shows up in the Character menu right away.
+
+## Gallery
+
+<!-- gallery:start -->
+| | Character | By | License |
+|---|---|---|---|
+| <img src="teacup/preview.gif" width="220" alt="Teacup"> | **Teacup**<br>A little teacup that steams while it waits. | [@doldoldol21](https://github.com/doldoldol21) | CC-BY-4.0 |
+<!-- gallery:end -->
+
+## Share your character
+
+1. Draw a character pack as described in [CHARACTERS.md](../CHARACTERS.md). Only `idle.png` is required; every motion you add makes it livelier.
+2. Try it in the app: put the folder in your characters folder and choose **Reload Characters**.
+3. Fork this repo and add the folder as `community/<name>/`. The name is 2–32 characters of `a-z`, `0-9` and `-`, and can't be a built-in character's name.
+4. Open a pull request. CI checks the pack and loads it in the app. After the merge, CI draws the preview, adds it to the gallery and the in-app list.
+
+### chara.json
+
+On top of the [usual keys](../CHARACTERS.md#charajson), a community pack needs three more:
+
+```json
+{
+  "name": "Teacup",
+  "names": { "en": "Teacup", "ko": "찻잔" },
+  "author": "your-github-name",
+  "license": "CC-BY-4.0",
+  "description": "A little teacup that steams while it waits."
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `author` | Your GitHub username (shown as "by …" and linked in the gallery) |
+| `license` | The license for your drawings: `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0` or `MIT` |
+| `description` | One short line, at most 140 characters (optional) |
+
+### Rules
+
+- **Your own drawing only.** No characters from games, anime, films, brands or other people's art, and no fan art of them, even redrawn. Packs that look like an existing character are closed.
+- Only `chara.json` and `<motion>.png` files (motion names are in [CHARACTERS.md](../CHARACTERS.md#motion-names)). No other files.
+- Frames are at most 30×32 dots, every motion uses the same frame size, at most 16 frames per motion.
+- Each file is at most 64 KB and the pack at most 512 KB. Pixel art is usually far smaller.
+- Keep it friendly: no violent, sexual or hateful content.
+
+Check a pack locally before opening the pull request:
+
+```bash
+python3 scripts/community.py check                    # file names, sizes, chara.json
+python3 scripts/community.py check --app bin/DotBuddy # also load it in the app (after ./build.sh)
+```
+
+No drawing skills? Open a [character idea](https://github.com/doldoldol21/dot-buddy/issues/new?template=character_idea.yml) and someone may pick it up.
+
+## How installing works
+
+The app downloads `community/index.json` from this repo only when you open **More Characters…**. Installing a pack downloads just the files the list names for it (`chara.json` and PNGs), checks each file's size and SHA-256 against the list, and puts the pack in your characters folder. Packs are images and a small JSON file, read with the same loader and limits as packs you add by hand.
+
+Each pack keeps the license its author chose (the `license` key); the app's code is MIT.
