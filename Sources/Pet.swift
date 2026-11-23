@@ -1243,7 +1243,7 @@ final class Pet: NSObject, NSMenuDelegate {
       if t - spaceChangedAt < 2.5 {                                               // Vanished due to a desktop switch: don't get startled, land gently
         if chatty >= 2, showing == nil, t - lastChat > 6, Double.random(in: 0...1) < 0.5 { say(any(T(["어? 화면이 바뀌었네", "여기는 어디지?", "슝~ 이사 왔다", "새 책상이다!"], ["Huh? New screen!", "Where am I?", "Whoosh~ we moved!", "Ooh, a new desk!"])), t) }
       } else {
-        startleUntil = t + 0.7
+        startleUntil = t + 0.7; fallInFront()
         if info == nil, chatty > 0, showing == nil, t - lastChat > 4 { say(line(.startle, ctx), t) }   // The window closed
       }
       return
@@ -1254,7 +1254,7 @@ final class Pet: NSObject, NSMenuDelegate {
     // Don't ride it down there (that looked like a teleport); let go and fall from where it was
     if dragMouse == nil, NSEvent.pressedMouseButtons & 1 == 0, r.width < rideRect.width * 0.8 || r.height < rideRect.height * 0.8 {
       rideOwner = ""; floorID = nil; vel = .init(dx: 0, dy: 0); act = .fall; startleUntil = t + 0.7
-      floors.removeAll { $0.owner == o }; lastFloors = 0; sceneActiveUntil = t + 3
+      floors.removeAll { $0.owner == o }; lastFloors = 0; sceneActiveUntil = t + 3; fallInFront()
       return
     }
     let dx = r.minX - rideRect.minX, dy = r.maxY - rideRect.maxY
@@ -1271,6 +1271,19 @@ final class Pet: NSObject, NSMenuDelegate {
       shiftFloors(o, dx, dy); if dy > 0 { pos.y = min(pos.y, rideRect.maxY - 1) }; return
     }
     shiftRide(o, dx, dy, t, smooth: true)
+  }
+  /// The window it stood on closed, hid (Esc, ⌘W, ⌘H) or minimized: fall in front of all windows, like after being let go.
+  /// At the plain fall level it dropped to the desktop level at once and vanished behind the windows that were behind it (or the app that came forward), then walked out at the bottom (2026-11-23)
+  /// If nothing visible is straight below (a window behind covers the floor there), drift sideways onto the nearest visible floor so it doesn't land hidden and walk out
+  func fallInFront() {
+    if !onTop { stackedOn = nil; window.level = .floating; window.orderFrontRegardless(); restackBubbles() }
+    handFall = true; if prof { flingTrace = now + 3 }
+    let ok = floors.filter { $0.y < pos.y - 4 && $0.x1 - $0.x0 >= halfW * 2 + 8 && !$0.id.hasSuffix(":x") }
+    if ok.contains(where: { pos.x >= $0.x0 + 4 && pos.x <= $0.x1 - 4 }) { return }
+    guard let f = ok.min(by: { abs(min(max(pos.x, $0.x0 + halfW), $0.x1 - halfW) - pos.x) < abs(min(max(pos.x, $1.x0 + halfW), $1.x1 - halfW) - pos.x) }) else { return }
+    let tx = min(max(pos.x, f.x0 + halfW), f.x1 - halfW)
+    guard abs(tx - pos.x) < 420 else { return }
+    vel.dx = (tx - pos.x) / CGFloat(sqrt(2 * Double(pos.y - f.y) / 2600)); ballistic = true   // Plain fall gravity is 2600; ballistic keeps the sideways speed so it lands there
   }
   func shiftFloors(_ o: String, _ dx: CGFloat, _ dy: CGFloat) {
     for i in floors.indices where floors[i].owner == o {                              // Move the window's floor along too
