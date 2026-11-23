@@ -40,11 +40,26 @@ func regularApps() -> Set<String> {
   }
   return s
 }
+/// The Dock bar's frame as the Dock itself reports it (private CoreDock call in the system frameworks; no permission). The slot estimate below missed
+/// minimized windows and separators, so the bar's ends were 50 to 110 points wider than it thought and the pet stood behind them (2026-11-23).
+/// nil if the call is missing or fails; then the estimate is used.
+private typealias DockRectFn = @convention(c) (UnsafeMutablePointer<CGRect>) -> Void   // Its return value is not a status (it read 0 or junk), so the rect itself is checked
+private let coreDockGetRect: DockRectFn? = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "CoreDockGetRect").map { unsafeBitCast($0, to: DockRectFn.self) }
+func dockRectNow() -> CGRect? {
+  guard let f = coreDockGetRect else { return nil }
+  var r = CGRect.zero
+  f(&r)
+  return r.width.isFinite && r.height.isFinite && r.width > 20 && r.height > 20 ? r : nil
+}
 func dockEstimate(_ scrs: [Scr]) -> CGRect? {
   guard let d = UserDefaults(suiteName: "com.apple.dock") else { return nil }
   let o = d.string(forKey: "orientation") ?? "bottom"
   let side = o == "left" || o == "right"
   guard let s = scrs.first(where: { side ? (o == "left" ? $0.visible.minX > $0.frame.minX + 8 : $0.visible.maxX < $0.frame.maxX - 8) : $0.visible.minY > $0.frame.minY + 8 }) else { return nil }
+  if let r = dockRectNow() {                           // The Dock's own frame (top-left origin) when it answers
+    let H = scrs[0].frame.height, b = CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height)
+    if s.frame.intersects(b) { return side ? b.insetBy(dx: 4, dy: 0) : CGRect(x: b.minX, y: b.minY + 4, width: b.width, height: b.height - 8) }
+  }
   let pinned = Set((d.array(forKey: "persistent-apps") as? [[String: Any]] ?? []).compactMap { ($0["tile-data"] as? [String: Any])?["bundle-identifier"] as? String })
   let running = regularApps()
   let apps = 1 + pinned.subtracting(["com.apple.finder"]).count + running.subtracting(pinned).subtracting(["com.apple.finder"]).count

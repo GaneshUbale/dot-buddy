@@ -233,6 +233,14 @@ final class Pet: NSObject, NSMenuDelegate {
       guard let self else { return }                                                   // Desktop switch: all windows change at once; don't be startled, just land at the new spot
       self.spaceChangedAt = self.now; self.lastFloors = 0; self.sceneActiveUntil = self.now + 3
     }
+    NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in   // Waiting under a cover: switching back to that app shows it again at once (its own occlusion does not change while the window is still in front of it)
+      guard let self, self.now < self.graceUntil else { return }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { self.lastFloors = 0; self.tick() }
+    }
+    NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
+      guard let self, self.now - self.occlScanAt > 0.3 else { return }                // Covered by a window brought to the front, or its own window came back: re-measure now (the 2 second scan made it show up late)
+      self.occlScanAt = self.now; self.lastFloors = 0; self.tick()
+    }
     NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in self?.screenFrames = NSScreen.screens.map(\.frame); self?.refreshFloors(force: true) }
     schedule(1.0 / 30)
   }
@@ -470,7 +478,10 @@ final class Pet: NSObject, NSMenuDelegate {
     scene = sc; sceneGen &+= 1
     floors = scene.floors
     if let o = old {
-      if let n = floors.first(where: { $0.owner == o.owner && abs($0.y - pos.y) < 3 && pos.x >= $0.x0 - 3 * scale && pos.x <= $0.x1 + 3 * scale }) {
+      let back = floors.first(where: { $0.owner == o.owner && abs($0.y - pos.y) < 3 && pos.x >= $0.x0 - 3 * scale && pos.x <= $0.x1 + 3 * scale })
+      if back != nil, graceUntil > 0 { graceUntil = 0; if prof { FileHandle.standardError.write("  GRACE back\n".data(using: .utf8)!) } }
+      if back == nil, coverGrace(o) { floors.append(o) }                            // Covered by a window brought to the front: wait in place a moment (it may come right back)
+      else if let n = back {
         floorID = n.id
         switch act {
         case .sitEdge, .peek, .hang, .sneak: break
@@ -485,10 +496,26 @@ final class Pet: NSObject, NSMenuDelegate {
         if !coverEscape(from: n) { floorID = nil; act = .sneak(min(max(pos.x, n.x0 + halfW), n.x1 - halfW), n.id); schedule(1.0 / 24) }   // A window came to the front and covered it: walk out to where it is visible
       } else if !coverEscape(from: nil) { floorID = nil; vel = .init(dx: 0, dy: 0); act = .fall }   // The whole top edge is covered: go onto the covering window or to a visible spot; if impossible, fall
     }
-    let inHand: Bool = { if case .drag = act { return true }; return handFall }()   // While held or falling after release, in front of all windows; don't revert to the desktop level when re-measuring the floor
+    let inHand: Bool = { switch act { case .drag, .dive: return true; default: return handFall } }()   // (a dive keeps the level it started with until it drops in)   // While held or falling after release, in front of all windows; don't revert to the desktop level when re-measuring the floor
     if stackedOn == nil, !inHand, window.level.rawValue != (onTop ? NSWindow.Level.floating.rawValue : scene.widgetLevel) { applyLevel() }
     applyStacking(force: true)
   }
+  /// The window it stands on was covered by another window brought to the front (the user clicked a window behind). People often glance at it and come straight back,
+  /// so for a few seconds it stays where it is, hidden, and the floor is kept; if its window comes back to the front it shows again at once (rescans are dense meanwhile).
+  /// Covered for longer, the usual escape runs: climb onto the covering window, step to a visible spot, or fall. Reacting at once left the window it was on
+  /// (it had already jumped elsewhere) and it seemed to show up seconds later (2026-11-23)
+  var graceUntil = 0.0, graceID = "", occlScanAt = 0.0, graceScanned = false
+  func coverGrace(_ o: Floor) -> Bool {
+    guard o.kind == .window, !screenLocked, now - spaceChangedAt > 2, scene.walls.contains(o.rect) else { graceUntil = 0; return false }   // Only if the window itself is still there unmoved (moved, closed or minimized are handled elsewhere)
+    switch act { case .stand, .walk, .work, .cheer, .hum, .sleep, .react, .roll, .follow, .yawn, .stretch, .sitEdge, .peek, .stroll: break; default: return false }
+    if graceUntil == 0 || graceID != o.id {                                          // A new cover (an expired wait on this same floor stays expired until it is seen again)
+      graceUntil = now + Pet.COVER_WAIT; graceID = o.id; graceScanned = false
+      if case .sleep = act {} else if case .work = act {} else { act = .stand; actUntil = graceUntil + 0.6 }   // Hold still (walking off a floor it can't see looked odd when it came back)
+      if prof { FileHandle.standardError.write("  GRACE start \(o.owner)\n".data(using: .utf8)!) }
+    }
+    return now < graceUntil
+  }
+  static let COVER_WAIT = 4.0
   /// Windows currently covering the pet's body (only windows in front of the pet). Standing on a window: windows in front of that window; on the floor or a widget: all windows
   func coveringWindow(on f: Floor?) -> CGRect? {
     let body = CGRect(x: pos.x - halfW * 0.6, y: pos.y + 2 * scale, width: halfW * 1.2, height: 10 * scale)
@@ -731,7 +758,7 @@ final class Pet: NSObject, NSMenuDelegate {
   /// Onto a window the user just brought to the front: hop if close, jump down onto it from the top of the screen if far (not every time, at most once per 25~50 seconds)
   var lastFront = 0, frontJump: (Int, Double)?, nextFrontJump = 0.0
   func stepFrontJump(_ t: Double) {
-    guard let (num, at) = frontJump, t >= at else { return }
+    guard let (num, at) = frontJump, t >= at, t >= graceUntil else { return }
     let busy: Bool = { switch act { case .walkOff, .walkTo: return false; default: return uninterruptible } }()   // If walking (going to step down or to climb), stop and go
     if floor == nil || busy { if t > at + 4 { frontJump = nil }; return }   // Go after the current action (jump, stepping down) finishes; wait up to 4 seconds
     frontJump = nil
@@ -751,7 +778,7 @@ final class Pet: NSObject, NSMenuDelegate {
     lastScrCheck = t
     let m = NSEvent.mouseLocation, ms = screenFrames.firstIndex { $0.contains(m) } ?? -1
     if ms != mouseScr { mouseScr = ms; mouseScrSince = t }
-    guard !screenLocked, ms >= 0, screenIdx(pos) != ms, t - mouseScrSince > 12, t > nextMigrate, floor != nil, !uninterruptible, mood != .sleep || act.isAwake else { return }
+    guard !screenLocked, t >= graceUntil, ms >= 0, screenIdx(pos) != ms, t - mouseScrSince > 12, t > nextMigrate, floor != nil, !uninterruptible, mood != .sleep || act.isAwake else { return }
     nextMigrate = t + 30
     let cands = floors.filter { screenIdx(CGPoint(x: $0.mid, y: $0.y + 1)) == ms && !$0.id.hasSuffix(":x") }
     if let g = cands.min(by: { hypot($0.mid - m.x, ($0.y - m.y) * 0.6) < hypot($1.mid - m.x, ($1.y - m.y) * 0.6) }) { dive(to: g); migrating = true }
@@ -814,7 +841,7 @@ final class Pet: NSObject, NSMenuDelegate {
   // With DOTBUDDY_PROF=1, print tick processing time to standard error every 5 seconds (for performance checks)
   let prof = ProcessInfo.processInfo.environment["DOTBUDDY_PROF"] != nil
   var profT: [Double] = [], profAt = 0.0
-  var profLast = 0.0, profPosT = 0.0, flingTrace = 0.0, actLogName = ""
+  var profLast = 0.0, profPosT = 0.0, flingTrace = 0.0, actLogName = "", profHidden = false
   func tick() {
     if prof {
       let t0 = now, first = profLast == 0, gap = t0 - profLast; profLast = t0       // now is a fresh time on every read, so read it once
@@ -900,12 +927,14 @@ final class Pet: NSObject, NSMenuDelegate {
     let hidden = !window.occlusionState.contains(.visible) && showing == nil && coveredPoints() >= 4   // Over the Dock (a full-screen transparent window), it is visible even if the system says 'occluded'; only when the body is actually covered
     escapes = escapes.filter { t - $0 < 20 }
     let busyScene = t < sceneActiveUntil || (hidden && hiddenSince > 0 && t - hiddenSince < 8)   // The window is moving or was just covered
-    if t - lastFloors > (busyScene ? 0.8 : (mood == .sleep || hidden ? 6 : (floor?.kind == .base ? 4 : 2)) * (fastMoving ? 4 : 1)) { lastFloors = t; lastRide = 0; stepRide(t); refreshFloors() }   // Apply the window move first so it isn't moved twice
+    if graceUntil > 0, t >= graceUntil, !graceScanned { graceScanned = true; lastFloors = 0 }   // The wait just ended: rescan now so the usual escape runs from fresh floors (the hidden escape below waits for it)
+    if t - lastFloors > (t < graceUntil + 0.5 ? 0.25 : busyScene ? 0.8 : (mood == .sleep || hidden ? 6 : (floor?.kind == .base ? 4 : 2)) * (fastMoving ? 4 : 1)) { lastFloors = t; lastRide = 0; stepRide(t); refreshFloors() }   // Apply the window move first so it isn't moved twice
     let dt = min(0.25, max(0.001, t - lastTick)); lastTick = t                  // Actual elapsed time (keeps its own speed even when waking slowly while covered)
     let mdt = min(dt, 0.05)                                                     // One walking or rolling step is capped at 1/20 second; this used to skip 30pt on the first step after starting to move from a slow rest
     // If covered for over 1.5 seconds, run to a visible floor
+    if prof, hidden != profHidden { profHidden = hidden; FileHandle.standardError.write("  HID \(hidden ? 1 : 0) \(String(format: "%.2f", t)) x=\(Int(pos.x)) y=\(Int(pos.y)) act=\(String(describing: act).components(separatedBy: "(")[0]) floor=\(floorID ?? "-")\n".data(using: .utf8)!) }
     if hidden { if hiddenSince == 0 { hiddenSince = t; lastFloors = 0 } } else { hiddenSince = 0 }   // Just covered: re-measure the floor right away
-    if hidden, !screenLocked, escapes.count < 2, t - hiddenSince > 1.5, !inTransit, floor != nil {   // If the screen is locked, being invisible is expected; don't escape. At most twice per 20 seconds
+    if hidden, !screenLocked, t >= graceUntil + 0.6, escapes.count < 2, t - hiddenSince > 1.5, !inTransit, floor != nil {   // If the screen is locked, being invisible is expected; don't escape. At most twice per 20 seconds
       hiddenSince = t; escapes.append(t)
       if let f = floor, coverEscape(from: f) {} else
       if let n = floors.filter({ $0.id != floorID && abs($0.y - pos.y) < 3 && !$0.id.hasSuffix(":x") && abs($0.mid - pos.x) < 900 }).min(by: { dist($0) < dist($1) }) {
@@ -983,7 +1012,7 @@ final class Pet: NSObject, NSMenuDelegate {
           if !handFall { return true }
           // Thrown: only a side you can see. The spot where it would hit must not be covered by a window in front (hitting hidden sides sent a throw to the left off to the right, 2026-11-18)
           let hit = CGPoint(x: nx < w.midX ? w.minX + 2 : w.maxX - 2, y: ny + 7 * scale)
-          return !scene.walls[..<i].contains { $0.contains(hit) }
+          return !scene.walls[..<i].contains { $0.contains(hit) && (nx < w.midX ? $0.maxX - w.minX : w.maxX - $0.minX) > 40 }   // A front window overlapping the side by a sliver doesn't hide it (windows tiled side by side overlap a few points; the throw flew through, 2026-11-23)
         })?.element {
           let fromLeft = pos.x < w.midX
           pos = CGPoint(x: fromLeft ? w.minX - halfW * 0.5 - 1 : w.maxX + halfW * 0.5 + 1, y: ny)
@@ -1010,6 +1039,10 @@ final class Pet: NSObject, NSMenuDelegate {
          let base = floors.filter({ $0.owner == "s\(si)" && pos.y < $0.y - 2 }).min(by: { dist($0) < dist($1) }) {
         fallTop = 0; vel = .init(dx: 0, dy: 0); landUntil = t + 0.14; dustT0 = t
         if pos.x >= base.x0 + halfW && pos.x <= base.x1 - halfW { pos.y = base.y; floorID = base.id; decide() }
+        else if handFall, abs(min(max(pos.x, base.x0 + halfW), base.x1 - halfW) - pos.x) > 120,
+                let g = floors.filter({ !$0.id.hasSuffix(":x") && $0.x1 - $0.x0 >= halfW * 2 + 8 && screenIdx(CGPoint(x: $0.mid, y: $0.y + 1)) == si }).min(by: { dist($0) < dist($1) }) {
+          pos.y = base.y; dive(to: g)                                                // Fell in front (thrown, or its window closed) onto a spot behind a window, far from any visible floor: hop out in front and drop onto the nearest visible spot.
+        }                                                                              // Walking out behind the window kept it unseen for seconds and it popped up at the screen bottom (closing a KakaoTalk window over Safari, 2026-11-23)
         else { pos.y = base.y; act = .sneak(min(max(pos.x, base.x0 + halfW), base.x1 - halfW), base.id) }   // If it fell behind a window, walk out to where it is visible
       } else if pos.y < -3000, let base = floors.first(where: { $0.kind == .base }) {
         fallTop = 0; pos = CGPoint(x: base.mid, y: base.y); floorID = base.id; vel = .init(dx: 0, dy: 0); decide()
