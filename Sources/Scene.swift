@@ -117,9 +117,9 @@ func scanScene(petH: CGFloat, halfW: CGFloat, scrs: [Scr] = screensNow(), dock: 
     // Even if the whole screen bottom is covered (maximized, full screen), leave one place to stand; without it the pet falls forever
     if segs.isEmpty { sc.floors.append(Floor(id: "s\(i):x", owner: "s\(i)", kind: .base, y: s.visible.minY, x0: s.visible.minX, x1: s.visible.maxX)) }
   }
-  if let d = dock {                                                          // Top of the Dock bar: the pet climbs up and walks and sits on it like a widget (parts covered by a front window are excluded)
-    sc.walls.append(d)
-    for (k, v) in visible(d.maxY, d.minX, d.maxX, all).enumerated() {
+  if let d = dock {                                                          // Top of the Dock bar: the pet climbs up and walks and sits on it like a widget.
+    sc.walls.append(d)                                                       // The whole top counts: the Dock is in front of every window and so is a pet on it
+    for (k, v) in visible(d.maxY, d.minX, d.maxX, all[all.endIndex...]).enumerated() {
       sc.floors.append(Floor(id: "dock:\(k)", owner: "dock", kind: .widget, y: d.maxY, x0: v.0, x1: v.1, bottom: d.minY - 4, edgeL: v.2, edgeR: v.3, rect: d))
     }
   }

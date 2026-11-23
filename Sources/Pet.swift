@@ -284,8 +284,8 @@ final class Pet: NSObject, NSMenuDelegate {
         window.order(.above, relativeTo: num)
         restackBubbles()
       }
-    } else if stackedOn != nil || window.level.rawValue != scene.widgetLevel {      // Landed on a floor or widget (also returns from the top level held while lifted)
-      stackedOn = nil; applyLevel()
+    } else if stackedOn != nil || dockLevel != (owner == "dock") || window.level.rawValue != (owner == "dock" || onTop ? NSWindow.Level.floating.rawValue : scene.widgetLevel) {   // Landed on a floor, widget or the Dock (also returns from the top level held while lifted)
+      stackedOn = nil; dockLevel = owner == "dock"; applyLevel()
     }
   }
   /// Set the level to match its owner (just in front of the window, otherwise the floor or widget level)
@@ -296,7 +296,7 @@ final class Pet: NSObject, NSMenuDelegate {
       lastStack = now; stackedOn = num
       if window.level != .normal { window.level = .normal }
       window.order(.above, relativeTo: num); restackBubbles()
-    } else if stackedOn != nil || window.level.rawValue != scene.widgetLevel { stackedOn = nil; applyLevel() }
+    } else if stackedOn != nil || dockLevel != (owner == "dock") || window.level.rawValue != (owner == "dock" || onTop ? NSWindow.Level.floating.rawValue : scene.widgetLevel) { stackedOn = nil; dockLevel = owner == "dock"; applyLevel() }
   }
   /// The bubble, badge and notifications always sit right above the pet window; if the pet is hidden behind a window they are hidden too (so the bubble doesn't float alone)
   /// Skip if already right above the pet and the pet window order hasn't changed since; re-aligning the order on every typed character kept the window server busy
@@ -308,11 +308,20 @@ final class Pet: NSObject, NSMenuDelegate {
     w.order(.above, relativeTo: window.windowNumber); stuckGen[k] = window.orderGen
   }
   func restackBubbles() { for w in [noticeWin, chatWin, badgeWin] where w?.isVisible == true { stickBubble(w!) } }
+  /// On the Dock bar (or falling onto it) the pet is in front of all windows, like the Dock itself. At the desktop level, a window whose
+  /// bottom edge sat just above the bar covered the pet there, so that part of the bar was no floor and a pet falling onto it went behind the Dock (2026-11-23)
+  var dockLevel = false
+  var restLevel: Int { onTop || dockLevel ? NSWindow.Level.floating.rawValue : scene.widgetLevel }
+  /// Windows in front of the pet: those in front of the window it stands on, none on the top level or the Dock, otherwise all
+  func frontWalls() -> [CGRect] {
+    if let n = stackedOn, let i = scene.order.firstIndex(of: n) { return Array(scene.walls[..<i]) }
+    return onTop || dockLevel ? [] : scene.walls
+  }
   func applyLevel() {
-    window.level = onTop ? .floating : NSWindow.Level(rawValue: scene.widgetLevel)
+    window.level = onTop || dockLevel ? .floating : NSWindow.Level(rawValue: scene.widgetLevel)
     noticeWin.level = window.level; chatWin.level = window.level; badgeWin.level = window.level
     if window.level != .normal { stackedOn = nil }
-    if onTop { window.orderFrontRegardless() }
+    if onTop || dockLevel { window.orderFrontRegardless() }
     restackBubbles()
   }
   func schedule(_ r: Double) {
@@ -497,7 +506,7 @@ final class Pet: NSObject, NSMenuDelegate {
       } else if !coverEscape(from: nil) { floorID = nil; vel = .init(dx: 0, dy: 0); act = .fall }   // The whole top edge is covered: go onto the covering window or to a visible spot; if impossible, fall
     }
     let inHand: Bool = { switch act { case .drag, .dive: return true; default: return handFall } }()   // (a dive keeps the level it started with until it drops in)   // While held or falling after release, in front of all windows; don't revert to the desktop level when re-measuring the floor
-    if stackedOn == nil, !inHand, window.level.rawValue != (onTop ? NSWindow.Level.floating.rawValue : scene.widgetLevel) { applyLevel() }
+    if stackedOn == nil, !inHand, window.level.rawValue != restLevel { applyLevel() }
     applyStacking(force: true)
   }
   /// The window it stands on was covered by another window brought to the front (the user clicked a window behind). People often glance at it and come straight back,
@@ -518,6 +527,7 @@ final class Pet: NSObject, NSMenuDelegate {
   static let COVER_WAIT = 4.0
   /// Windows currently covering the pet's body (only windows in front of the pet). Standing on a window: windows in front of that window; on the floor or a widget: all windows
   func coveringWindow(on f: Floor?) -> CGRect? {
+    if f?.owner == "dock" { return nil }                                            // On the Dock the pet is in front of every window
     let body = CGRect(x: pos.x - halfW * 0.6, y: pos.y + 2 * scale, width: halfW * 1.2, height: 10 * scale)
     var front = scene.walls
     if let f, f.kind == .window, let num = Int(f.owner.dropFirst()), let i = scene.order.firstIndex(of: num) { front = Array(scene.walls[..<i]) }
@@ -891,7 +901,7 @@ final class Pet: NSObject, NSMenuDelegate {
   }
   /// Number of the five body points covered by a front window (all windows if on the floor level, including the Dock bar) or off screen
   func coveredPoints() -> Int {
-    let front: [CGRect] = { if let n = stackedOn, let i = scene.order.firstIndex(of: n) { return Array(scene.walls[..<i]) }; return onTop ? [] : scene.walls }()
+    let front = frontWalls()
     let body = [CGPoint(x: pos.x, y: pos.y + 6 * scale), CGPoint(x: pos.x - halfW * 0.6, y: pos.y + 3 * scale), CGPoint(x: pos.x + halfW * 0.6, y: pos.y + 3 * scale), CGPoint(x: pos.x, y: pos.y + 11 * scale), CGPoint(x: pos.x, y: pos.y + 1)]
     return body.filter { p in !screenFrames.contains { $0.contains(p) } || front.contains { $0.contains(p) } }.count
   }
@@ -1742,10 +1752,7 @@ final class Pet: NSObject, NSMenuDelegate {
     let fr = screenFrames.first(where: { $0.contains(CGPoint(x: pos.x, y: max(pos.y, $0.minY + 1))) }) ?? screenFrames.first ?? .zero
     let v = NSScreen.screens.first(where: { $0.frame == fr })?.visibleFrame ?? fr
     // Windows in front of the pet (all windows + the Dock if the pet is at the desktop level); a bubble overlapping them would be hidden and unseen
-    let front: [CGRect] = {
-      if let n = stackedOn, let i = scene.order.firstIndex(of: n) { return Array(scene.walls[..<i]) }
-      return scene.walls
-    }()
+    let front = frontWalls() + (dockRect.map { [$0] } ?? [])                         // The Dock bar is in front even of the top level
     func clear(_ r: CGRect) -> Bool { r.minY >= fr.minY && r.maxY <= v.maxY &&   // Down to the very bottom of the screen (the Dock is handled separately as a wall of front)
        r.minX >= fr.minX && r.maxX <= fr.maxX && !front.contains { $0.insetBy(dx: 2, dy: 2).intersects(r) } }
     let ax = min(max((pos.x - size.width / 2).rounded(), fr.minX + 4), fr.maxX - size.width - 4)
