@@ -4,6 +4,12 @@
 
 사람들이 도트 친구용으로 그린 캐릭터예요. 앱에서 펫을 오른쪽 클릭 → 캐릭터 → **다른 캐릭터 받기…** 에서 골라 **받기**를 누르면 캐릭터 메뉴에 바로 생겨요. 목록과 미리보기는 [README.md 의 Gallery](README.md#gallery) 에 있어요.
 
+## 기본 캐릭터
+
+아래 여섯은 앱에 들어 있어서 따로 받지 않아도 돼요. [`charas/chars.py`](../charas/chars.py) 가 코드로 그려요.
+
+<p align="center"><img src="../docs/media/characters.gif" alt="기본 캐릭터 여섯: 만두, 도토리, 새싹 화분, 구름, 촛불, 이끼돌" width="720"></p>
+
 ## 내 캐릭터 올리기
 
 1. [CHARACTERS.ko.md](../CHARACTERS.ko.md) 대로 캐릭터 꾸러미를 그려요. 꼭 필요한 건 `idle.png` 하나고, 동작을 더 그릴수록 더 생생해져요.

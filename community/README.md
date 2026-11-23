@@ -4,6 +4,12 @@ English | [한국어](README.ko.md)
 
 Characters people drew for Dot Buddy. In the app, right-click the pet → Character → **More Characters…**, pick one and choose **Install**. It shows up in the Character menu right away.
 
+## Built in
+
+These six come with the app, so there's nothing to install. They're drawn in code by [`charas/chars.py`](../charas/chars.py).
+
+<p align="center"><img src="../docs/media/characters.gif" alt="The six built-in characters: Dumpling, Acorn, Sprout, Cloud, Candle and Pebble" width="720"></p>
+
 ## Gallery
 
 <!-- gallery:start -->
