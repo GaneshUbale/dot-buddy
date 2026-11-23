@@ -2214,9 +2214,13 @@ final class Pet: NSObject, NSMenuDelegate {
   @objc func installUpdateNow() {
     guard let u = availableUpdate, !updating else { return }
     updating = true
-    say(T("\(u.version) 받는 중…", "Downloading \(u.version)…"), now)
+    say(T("업데이트 받는 중…", "Downloading the update…"), now)
     let from = APP_VERSION
     DispatchQueue.global(qos: .utility).async { [weak self] in
+      // Ask again right before downloading: the version found at the last check can be stale (a newer one came out meanwhile and
+      // installing the old one meant updating twice, 0.3.6 → 0.3.7 → 0.3.8 on 2026-11-23). If asking fails, install the one already found
+      var u = u
+      if case .success(let l) = latestRelease(), versionNewer(l.version, than: u.version) { u = l }
       let r = installUpdate(u)
       DispatchQueue.main.async {
         guard let self else { return }
