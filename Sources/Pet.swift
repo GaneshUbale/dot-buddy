@@ -271,6 +271,8 @@ final class Pet: NSObject, NSMenuDelegate {
       if handFall && !passThru { return }                                           // While falling after release, keep the held level (in front of all windows). Dropping to the desktop level made it vanish behind windows (released inside a window, it goes straight behind that window). On landing, switch to that floor's level
       let x = pos.x + vel.dx * 0.15
       guard let f = floors.filter({ $0.y <= pos.y + 0.5 && x >= $0.x0 + 4 && x <= $0.x1 - 4 && (dropOwner == nil || $0.owner == dropOwner || $0.kind == .base) }).max(by: { $0.y < $1.y }) else { return }
+      let body = CGPoint(x: pos.x, y: pos.y + 7 * scale)                           // Seen now but behind a window at that floor's level: keep this level until it falls clear of that window.
+      if wallsInFront(of: f.owner).contains(where: { $0.contains(body) }), !frontWalls().contains(where: { $0.contains(body) }) { return }   // Switching at once made it vanish mid-air behind a window that sat behind the one it jumped from (2026-11-24)
       if f.owner != fallOwner || force { fallOwner = f.owner; stackFor(f.owner) }
       return
     case .drag, .dive, .slide, .descend: return                                     // Other mid-air actions are left unchanged (decided on landing)
@@ -313,6 +315,12 @@ final class Pet: NSObject, NSMenuDelegate {
   var dockLevel = false
   var restLevel: Int { onTop || dockLevel ? NSWindow.Level.floating.rawValue : scene.widgetLevel }
   /// Windows in front of the pet: those in front of the window it stands on, none on the top level or the Dock, otherwise all
+  /// Windows that would be in front of the pet standing on a floor of this owner
+  func wallsInFront(of owner: String) -> [CGRect] {
+    if owner == "dock" { return [] }
+    if owner.first == "w", let n = Int(owner.dropFirst()), let i = scene.order.firstIndex(of: n) { return Array(scene.walls[..<i]) }
+    return scene.walls
+  }
   func frontWalls() -> [CGRect] {
     if let n = stackedOn, let i = scene.order.firstIndex(of: n) { return Array(scene.walls[..<i]) }
     return onTop || dockLevel ? [] : scene.walls
@@ -1047,10 +1055,11 @@ final class Pet: NSObject, NSMenuDelegate {
       // If it fell below the Dock, onto that screen's floor; only the floor of the screen the pet is horizontally inside now (so it doesn't catch the adjacent screen's floor and get stuck on the boundary)
       if case .fall = act, let si = screenIdx(pos),
          let base = floors.filter({ $0.owner == "s\(si)" && pos.y < $0.y - 2 }).min(by: { dist($0) < dist($1) }) {
-        fallTop = 0; vel = .init(dx: 0, dy: 0); landUntil = t + 0.14; dustT0 = t
+        let fromY = fallTop; fallTop = 0; vel = .init(dx: 0, dy: 0); landUntil = t + 0.14; dustT0 = t; pos.y = base.y   // (on the floor line first: below it, body points off screen counted as covered)
         if pos.x >= base.x0 + halfW && pos.x <= base.x1 - halfW { pos.y = base.y; floorID = base.id; decide() }
-        else if handFall, abs(min(max(pos.x, base.x0 + halfW), base.x1 - halfW) - pos.x) > 120,
-                let g = floors.filter({ !$0.id.hasSuffix(":x") && $0.x1 - $0.x0 >= halfW * 2 + 8 && screenIdx(CGPoint(x: $0.mid, y: $0.y + 1)) == si }).min(by: { dist($0) < dist($1) }) {
+        else if handFall ? abs(min(max(pos.x, base.x0 + halfW), base.x1 - halfW) - pos.x) > 120 : coveredPoints() < 3,   // (also when it walked off a window and is still seen: sneaking out from behind the back window hid it, 2026-11-24)
+                let g = { (ok: [Floor]) in (ok.contains { $0.y < fromY - 40 } ? ok.filter { $0.y < fromY - 40 } : ok).min(by: { dist($0) < dist($1) }) }(   // A floor lower than where it fell from first (the nearest was often the window it had just jumped off, and it went straight back up)
+                  floors.filter({ !$0.id.hasSuffix(":x") && $0.x1 - $0.x0 >= halfW * 2 + 8 && screenIdx(CGPoint(x: $0.mid, y: $0.y + 1)) == si })) {
           pos.y = base.y; dive(to: g)                                                // Fell in front (thrown, or its window closed) onto a spot behind a window, far from any visible floor: hop out in front and drop onto the nearest visible spot.
         }                                                                              // Walking out behind the window kept it unseen for seconds and it popped up at the screen bottom (closing a KakaoTalk window over Safari, 2026-11-23)
         else { pos.y = base.y; act = .sneak(min(max(pos.x, base.x0 + halfW), base.x1 - halfW), base.id) }   // If it fell behind a window, walk out to where it is visible
