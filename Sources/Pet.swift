@@ -2196,18 +2196,24 @@ final class Pet: NSObject, NSMenuDelegate {
           let first = self.availableUpdate?.version != u.version
           self.availableUpdate = u
           if BUILD_KIND != "release" { if manual || first { self.say(T("새 업데이트 \(u.version)! git pull 하고 build.sh", "\(u.version) is out! git pull && ./build.sh"), self.now) }; return }
-          if !manual && UD.bool(forKey: "autoUpdate") { self.installWhenIdle(); return }
+          if UD.bool(forKey: "autoUpdate") { if manual { self.installUpdateNow() } else { self.installWhenIdle() }; return }   // asking by hand with automatic updates on means "get it now"
           if manual || first { self.say(T("새 업데이트 \(u.version)! 오른쪽 클릭해서 설치", "\(u.version) is out! Right-click to install"), self.now) }
         }
       }
     }
   }
-  /// Automatic install waits until no agent is working or waiting on you, then swaps and relaunches
+  /// Automatic install waits until no agent is working or waiting on you, then swaps and relaunches.
+  /// Someone who keeps agents busy all day never gets that quiet moment, so after waiting INSTALL_WAIT it installs anyway
+  var idleWaitSince = 0.0
+  static let INSTALL_WAIT = 3.0 * 3600
   func installWhenIdle() {
     guard availableUpdate != nil, !updating else { return }
-    if list.contains(where: { $0.mood == .work || $0.mood == .ask }) || showing != nil || !notices.isEmpty {   // any session still working or asking (the pet's own mood shows only the most urgent one)
+    let busy = list.contains(where: { $0.mood == .work || $0.mood == .ask }) || showing != nil || !notices.isEmpty   // any session still working or asking (the pet's own mood shows only the most urgent one)
+    if idleWaitSince == 0 { idleWaitSince = Date().timeIntervalSince1970 }
+    if busy, Date().timeIntervalSince1970 - idleWaitSince < Pet.INSTALL_WAIT {
       DispatchQueue.main.asyncAfter(deadline: .now() + 300) { [weak self] in self?.installWhenIdle() }; return
     }
+    idleWaitSince = 0
     installUpdateNow()
   }
   @objc func installCLINow() {

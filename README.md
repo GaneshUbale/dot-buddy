@@ -108,7 +108,7 @@ On macOS 14 and earlier, Control-click the app and choose **Open** instead. If y
 
 ## Updates
 
-Release builds update themselves. Turn on **Update Automatically** in the right-click menu (it's offered on first launch): once a day the pet checks GitHub, and when a new version is out it downloads it, checks its Ed25519 signature and bundle, and swaps it in while no agent is working, then says hello from the new version. **Check for Updates…** does the same on demand. The previous version goes to the Trash.
+Release builds update themselves. Turn on **Update Automatically** in the right-click menu (it's offered on first launch): once a day the pet checks GitHub, and when a new version is out it downloads it, checks its Ed25519 signature and bundle, and swaps it in while no agent is working (after three hours of waiting it swaps anyway), then says hello from the new version. **Check for Updates…** does the same on demand and installs right away. The previous version goes to the Trash.
 
 Apps built from source never replace themselves; they just tell you a new version exists (`git pull && ./build.sh`).
 
