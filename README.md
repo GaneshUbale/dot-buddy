@@ -55,7 +55,7 @@ Clicking the pet marks everything as seen. A finished session keeps its "done" s
   You can replace this with your own command per agent (see [Configuration](#configuration)).
 - **Characters.** Six original pixel characters (Dumpling, Acorn, Sprout, Cloud, Candle, Pebble), each with its own lines and effects. Draw your own, or drop a character someone sent you (a zip, folder or PNG) on the pet to install it: see [CHARACTERS.md](CHARACTERS.md).
 - **Community characters.** Install characters other people drew from the menu (Character → **More Characters…**), and share yours with a pull request: see [community/](community/README.md).
-- **Codex pets.** Pets made for the Codex app (`pet.json` + 8×9 spritesheet) load as-is from `~/.codex/pets/`.
+- **Codex pets.** Pets made for the Codex app (`pet.json` + 8×9 spritesheet) load as-is from `~/.codex/pets/`. A downloaded Codex pet zip works too: drop it on the pet without unzipping.
 - **Bilingual.** Follows the system language; switch between English and Korean from the menu.
 
 ## Install
