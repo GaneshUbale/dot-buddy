@@ -216,6 +216,8 @@ Codex CLI, Gemini CLI, Cursor, opencode, Aider 설정은 [docs/agents.md](docs/a
 
 MIT 라이선스예요([LICENSE](LICENSE)). 함께 들어가는 글꼴은 SIL Open Font License 1.1 이고, 자세한 내용은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 있어요.
 
+갈라져 나간 판(포크)도 MIT 라이선스대로 환영해요. 공개할 때는 저작권 표시를 남기고, 도트 친구로 오해받지 않게 이름과 아이콘을 다르게 해 주세요.
+
 - [OpenPets](https://github.com/alterhq/openpets)(MIT)에서 몇 가지 동작을 참고했어요. 투명한 부분 클릭 통과, 움직일 때만 빠르게 그리기, 던지기 속도 재는 방법이에요. 코드는 가져오지 않았어요.
 - Codex 펫 형식(`pet.json` + 8×9 스프라이트 시트)은 호환을 위해 읽기만 해요. 도트 친구는 OpenAI, Anthropic 과 관계가 없어요.
 - 말풍선 글꼴: [갈무리](https://github.com/quiple/galmuri), [Neo둥근모](https://github.com/neodgm/neodgm).

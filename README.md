@@ -220,6 +220,8 @@ Bug reports, characters you drew yourself and integrations for more agents are w
 
 MIT, see [LICENSE](LICENSE). Bundled fonts are under the SIL Open Font License 1.1; details in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+Forks are welcome under the MIT License. If you publish one, please keep the copyright notice and give it a different name and icon, so nobody mistakes it for Dot Buddy.
+
 - [OpenPets](https://github.com/alterhq/openpets) (MIT) inspired a few behaviors: click-through on transparent pixels, fast ticks only while moving, and sampling throw velocity. No code was copied.
 - The Codex pet format (`pet.json` + 8×9 spritesheet) is read for compatibility. Dot Buddy is not affiliated with OpenAI or Anthropic.
 - Bubble fonts: [Galmuri](https://github.com/quiple/galmuri) and [Neo둥근모](https://github.com/neodgm/neodgm).
