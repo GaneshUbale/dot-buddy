@@ -1443,7 +1443,11 @@ final class Pet: NSObject, NSMenuDelegate {
       if b.maxX < pos.x { lo = max(lo, b.maxX) } else { hi = min(hi, b.minX) }
     }
     guard hi - lo >= halfW * 2 + 8 else { return nil }                               // No gap for the body to fit
-    let canL = lo < w.minX, canR = hi > w.maxX                                       // Is it open beyond the end of that top edge
+    // Beyond the end is another top edge at about the same height that it can't stand on either: sliding there only bounces it back.
+    // Two overlapping windows whose tops sit right under the menu bar kept it sliding between them forever (2026-11-25)
+    let dead = { (x: CGFloat) in self.scene.walls.contains { b in
+      b != w && b.minX < x && b.maxX > x && b.maxY >= y - 4 * self.scale && b.minY < y && !self.floors.contains { $0.x0 <= x && $0.x1 >= x && abs($0.y - b.maxY) < 3 } } }
+    let canL = lo < w.minX && !dead(w.minX - halfW), canR = hi > w.maxX && !dead(w.maxX + halfW)   // Is it open beyond the end of that top edge
     switch (canL, canR) {
     case (true, true): return pos.x < w.midX ? -1 : 1
     case (true, false): return -1
