@@ -18,6 +18,8 @@ DOTBUDDY="$HOME/Applications/Dot Buddy.app/Contents/MacOS/DotBuddy"   # or bin/D
 
 Right-click the pet → Character → **Open Characters Folder**. After adding files, choose **Reload Characters** and they show up in the menu right away (no restart).
 
+Got a character from someone as a zip, a folder or a single PNG? Drag it onto the pet. The pet copies it into this folder and switches to it. Only the files a character uses are copied (`chara.json`, motion PNGs, a Codex pet's `pet.json` and sheet); anything else in the zip stays out. A character with the same name goes to the Trash. From a terminal: `"$DOTBUDDY" --install-chara <zip|folder|png>`.
+
 Characters other people drew are one click away: Character → **More Characters…**. When yours is ready, share it the same way: see [community/README.md](community/README.md#share-your-character).
 
 ## Two formats

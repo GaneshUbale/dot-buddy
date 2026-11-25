@@ -20,6 +20,7 @@
 //   DotBuddy --preview a.png character x pose sample sheet
 //   DotBuddy --demo-gif a.gif [hero|characters|chara:<id>]   README demo animation / one character's preview, drawn offscreen
 //   DotBuddy --community-list · --community-install <id> · --community-preview a.png   community characters (DOTBUDDY_COMMUNITY_BASE changes the source)
+//   DotBuddy --install-chara <zip|folder|png>   put a character someone sent you into the characters folder (same as dropping it on the pet)
 //   DotBuddy --install-cli [dir]  link dotbuddy and dotbuddy-hook into ~/.local/bin · --hook TOOL ID_KEY ACTION [REPLY] (= dotbuddy-hook, reads hook JSON on stdin)
 //   DotBuddy --check-update  latest GitHub release vs this build (JSON) · --verify-update <zip> <sig> · --install-update <app path>
 import AppKit
@@ -359,6 +360,12 @@ struct Main {
       guard case .success(let ps) = communityIndex(), let p = ps.first(where: { $0.id == a[2] }) else { print(T("목록에 \(a[2]) 가 없어요", "\(a[2]) isn't in the list")); exit(1) }
       switch installCommunityPack(p) {
       case .success(let id): print(id); return
+      case .failure(let e): print(describe(e)); exit(1)
+      }
+    }
+    if a.count >= 3 && a[1] == "--install-chara" {                                // --install-chara <zip|folder|png>: what dropping it on the pet does
+      switch installDroppedChara(URL(fileURLWithPath: a[2])) {
+      case .success(let (id, _)): print(id); return
       case .failure(let e): print(describe(e)); exit(1)
       }
     }

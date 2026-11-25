@@ -40,6 +40,16 @@ final class PetView: DotLayerView {
   override func mouseDragged(with e: NSEvent) { pet?.dragTo() }
   override func mouseUp(with e: NSEvent) { pet?.release() }
   override func rightMouseDown(with e: NSEvent) { pet?.showMenu() }
+  // Drop a character (.zip, folder or .png) on the pet to install it
+  private func dropped(_ s: NSDraggingInfo) -> [URL] {
+    (s.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []).filter(droppableChara)
+  }
+  override func draggingEntered(_ s: NSDraggingInfo) -> NSDragOperation { dropped(s).isEmpty ? [] : .copy }
+  override func draggingUpdated(_ s: NSDraggingInfo) -> NSDragOperation { dropped(s).isEmpty ? [] : .copy }
+  override func performDragOperation(_ s: NSDraggingInfo) -> Bool {
+    guard let u = dropped(s).first else { return false }
+    pet?.installChara(u); return true
+  }
 }
 
 enum React: CaseIterable { case hop, spin, heart, squish, dizzy, wave, shy, star, pout, party, flinch }
@@ -176,7 +186,7 @@ final class Pet: NSObject, NSMenuDelegate {
     window = PetWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false); window.isPet = true
     window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = false
     window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
-    view = PetView(); view.pet = self
+    view = PetView(); view.pet = self; view.registerForDraggedTypes([.fileURL])
     let holder = NSView(); holder.wantsLayer = true                                  // The pet window is PAD larger than the pet on every side. The pet image moves inside it, and the window is moved only when the pet reaches its edge
     holder.addSubview(view); window.contentView = holder
     noticeWin = PetWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
@@ -2315,6 +2325,23 @@ final class Pet: NSObject, NSMenuDelegate {
     chara = findChara(chara.id)
     lastKey = ""; resize(); cheerUntil = now + 1.2
     say(T("캐릭터 \(ALL_CHARAS.filter { $0.sprite != nil }.count)개 불러왔어!", { let c = ALL_CHARAS.filter { $0.sprite != nil }.count; return c == 1 ? "Loaded 1 character!" : "Loaded \(c) characters!" }()), now)
+  }
+  /// A character dropped on the pet: install it off the main thread, then switch to it
+  func installChara(_ u: URL) {
+    say(T("받는 중…", "Unpacking…"), now)
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let r = installDroppedChara(u)
+      DispatchQueue.main.async { [weak self] in
+        guard let self else { return }
+        switch r {
+        case .success(let (id, name)):
+          ALL_CHARAS = mergeCharas(loadCustomCharas())
+          self.chara = findChara(id); UD.set(id, forKey: "chara"); self.lastKey = ""; self.resize(); self.cheerUntil = self.now + 1.2
+          self.say(T("\(name) 왔어!", "\(name) is here!"), self.now)
+        case .failure(let e): self.say(describe(e), self.now)
+        }
+      }
+    }
   }
   @objc func setChara(_ it: NSMenuItem) {
     guard let id = it.representedObject as? String, let c = ALL_CHARAS.first(where: { $0.id == id }) else { return }

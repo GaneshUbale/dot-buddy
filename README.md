@@ -53,7 +53,7 @@ Clicking the pet marks everything as seen. A finished session keeps its "done" s
   | Anything else (Ghostty, WezTerm, kitty, VS Code, tmux inside any terminal, …) | Brings the app to the front |
 
   You can replace this with your own command per agent (see [Configuration](#configuration)).
-- **Characters.** Six original pixel characters (Dumpling, Acorn, Sprout, Cloud, Candle, Pebble), each with its own lines and effects. Draw your own: see [CHARACTERS.md](CHARACTERS.md).
+- **Characters.** Six original pixel characters (Dumpling, Acorn, Sprout, Cloud, Candle, Pebble), each with its own lines and effects. Draw your own, or drop a character someone sent you (a zip, folder or PNG) on the pet to install it: see [CHARACTERS.md](CHARACTERS.md).
 - **Community characters.** Install characters other people drew from the menu (Character → **More Characters…**), and share yours with a pull request: see [community/](community/README.md).
 - **Codex pets.** Pets made for the Codex app (`pet.json` + 8×9 spritesheet) load as-is from `~/.codex/pets/`.
 - **Bilingual.** Follows the system language; switch between English and Korean from the menu.

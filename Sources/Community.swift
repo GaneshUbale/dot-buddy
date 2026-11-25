@@ -127,6 +127,117 @@ func installCommunityPack(_ p: CommunityPack, dir: URL = CHARAS_DIR) -> Result<S
   return .success("pack:" + p.id)
 }
 
+// ---------- Installing a character someone handed you ----------
+// Drop a .zip, a character folder or a single .png on the pet (or run --install-chara <path>) and it lands in the characters folder.
+// Only the files the loader reads are copied (chara.json, <motion>.png, a Codex pet's pet.json and sheet, a single sprite's .png and .json);
+// anything else in the folder or zip is left behind. The new character must load before it replaces anything, and a character
+// with the same name goes to the Trash rather than being deleted.
+let DROP_MAX_ZIP = 32 << 20, DROP_MAX_UNZIPPED = 64 << 20, DROP_MAX_ZIP_FILES = 400
+
+/// Can this be dropped on the pet? (a folder, a .zip or a .png)
+func droppableChara(_ u: URL) -> Bool {
+  let ext = u.pathExtension.lowercased()
+  return ext == "zip" || ext == "png" || (try? u.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+}
+
+/// Run a system tool and return its output, or nil if it failed
+private func runTool(_ path: String, _ args: [String]) -> String? {
+  let p = Process(); p.executableURL = URL(fileURLWithPath: path); p.arguments = args
+  let out = Pipe(); p.standardOutput = out; p.standardError = FileHandle.nullDevice
+  guard (try? p.run()) != nil else { return nil }
+  let d = out.fileHandleForReading.readDataToEndOfFile(); p.waitUntilExit()
+  return p.terminationStatus == 0 ? String(decoding: d, as: UTF8.self) : nil
+}
+
+/// Install a character from a .zip, a folder or a .png (call off the main thread). Returns the character id and its shown name
+func installDroppedChara(_ src: URL, dir: URL = CHARAS_DIR) -> Result<(String, String), CommunityError> {
+  let fm = FileManager.default
+  let notFound = CommunityError.bad(T("캐릭터를 못 찾았어요. idle.png 가 든 폴더나 zip, png 한 장을 놓아 주세요", "no character in it; drop a folder or zip with idle.png, or a single .png"))
+  var work: URL?
+  defer { if let w = work { try? fm.removeItem(at: w) } }
+  let isDir = { (u: URL) in (try? u.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+  var root = src, name = isDir(src) ? src.lastPathComponent : src.deletingPathExtension().lastPathComponent
+  if src.pathExtension.lowercased() == "zip" {
+    // Look at the listing first so a zip that unpacks into something huge is refused before anything is written
+    guard let sz = (try? src.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, sz <= DROP_MAX_ZIP else { return .failure(.bad(T("zip 이 너무 커요", "the zip is too big"))) }
+    guard let list = runTool("/usr/bin/unzip", ["-l", src.path]) else { return .failure(.bad(T("zip 을 못 열었어요", "can't open the zip"))) }
+    let last = list.split(separator: "\n").last.map { $0.split(separator: " ").compactMap { Int($0) } } ?? []
+    guard last.count >= 2, last[0] <= DROP_MAX_UNZIPPED, last[1] <= DROP_MAX_ZIP_FILES else { return .failure(.bad(T("zip 이 너무 커요", "the zip is too big"))) }
+    guard let names = runTool("/usr/bin/unzip", ["-Z1", src.path]),
+          !names.split(separator: "\n").contains(where: { $0.hasPrefix("/") || $0.split(separator: "/").contains("..") }) else { return .failure(.bad(T("zip 안 경로가 이상해요", "a path in the zip points outside it"))) }
+    let w = fm.temporaryDirectory.appendingPathComponent("dotbuddy-drop-\(UUID().uuidString)"); work = w
+    guard runTool("/usr/bin/ditto", ["-x", "-k", src.path, w.path]) != nil else { return .failure(.bad(T("zip 을 못 풀었어요", "can't unpack the zip"))) }
+    root = w
+  } else if !isDir(src) && src.pathExtension.lowercased() != "png" {
+    return .failure(notFound)
+  }
+  // A folder (or unpacked zip) that holds one character folder, e.g. a zip of ago/: go into it
+  let has = { (u: URL, f: String) in fm.fileExists(atPath: u.appendingPathComponent(f).path) }
+  if isDir(root), !has(root, "idle.png"), !has(root, "pet.json") {
+    let kids = ((try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles])) ?? []).filter { $0.lastPathComponent != "__MACOSX" }
+    let dirs = kids.filter(isDir), pngs = kids.filter { $0.pathExtension.lowercased() == "png" }
+    if dirs.count == 1, pngs.isEmpty { root = dirs[0]; name = root.lastPathComponent }
+    else if dirs.isEmpty, pngs.count == 1 { root = pngs[0]; name = root.deletingPathExtension().lastPathComponent }
+    else { return .failure(notFound) }
+  }
+  // The name becomes the folder (or file) name: no slashes, colons or leading dots
+  name = String(name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-").drop { $0 == "." }.prefix(40)).trimmingCharacters(in: .whitespacesAndNewlines)
+  if name.isEmpty || name == "__MACOSX" { name = "chara" }
+
+  // Pick the files to copy
+  var files: [(URL, String)] = [], id: String, dstName: String
+  if isDir(root) {
+    dstName = name
+    if has(root, "pet.json") {
+      id = "codex:" + name
+      guard let d = try? Data(contentsOf: root.appendingPathComponent("pet.json")), let m = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return .failure(.bad("pet.json")) }
+      let sheet = m["spritesheetPath"] as? String ?? "spritesheet.webp"
+      guard !sheet.isEmpty, !sheet.contains("/"), !sheet.hasPrefix("."), has(root, sheet) else { return .failure(.bad("spritesheetPath")) }
+      files = [(root.appendingPathComponent("pet.json"), "pet.json"), (root.appendingPathComponent(sheet), sheet)]
+    } else {
+      id = "pack:" + name
+      files = (["chara.json"] + MOTIONS.map { $0.0 + ".png" }).filter { has(root, $0) }.map { (root.appendingPathComponent($0), $0) }
+    }
+  } else {
+    dstName = name + ".png"; id = "custom:" + name
+    files = [(root, dstName)]
+    let js = root.deletingPathExtension().appendingPathExtension("json")
+    if fm.fileExists(atPath: js.path) { files.append((js, name + ".json")) }
+  }
+  for (u, _) in files {
+    let v = try? u.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+    guard v?.isRegularFile == true, (v?.fileSize ?? 0) <= MAX_IMAGE_BYTES else { return .failure(.bad(u.lastPathComponent)) }   // no links, nothing huge
+  }
+  guard !files.isEmpty else { return .failure(notFound) }
+
+  // Already the one in the characters folder (dragged from there): nothing to copy
+  let dst = dir.appendingPathComponent(dstName)
+  if root.resolvingSymlinksInPath().path == dst.resolvingSymlinksInPath().path {
+    return loadCharas(in: dir).first { $0.id == id }.map { .success((id, $0.name)) } ?? .failure(notFound)
+  }
+  // Put it together next to the characters folder (hidden, so the app doesn't load it half-written), check it loads, then swap it in
+  try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+  let stage = dir.appendingPathComponent(".incoming-\(UUID().uuidString)")
+  defer { try? fm.removeItem(at: stage) }
+  do {
+    try fm.createDirectory(at: stage, withIntermediateDirectories: true)
+    if isDir(root) {
+      let p = stage.appendingPathComponent(dstName); try fm.createDirectory(at: p, withIntermediateDirectories: true)
+      for (u, n) in files { try fm.copyItem(at: u, to: p.appendingPathComponent(n)) }
+    } else {
+      for (u, n) in files { try fm.copyItem(at: u, to: stage.appendingPathComponent(n)) }
+    }
+  } catch { return .failure(.bad(error.localizedDescription)) }
+  guard let c = loadCharas(in: stage).first(where: { $0.id == id }) else { return .failure(.bad(T("불러올 수 없는 그림이에요(칸 크기를 CHARACTERS.md 와 맞춰 보세요)", "it doesn't load (check the frame size against CHARACTERS.md)"))) }
+  do {
+    var olds = [dst]
+    if !isDir(root) { olds.append(dir.appendingPathComponent(name + ".json")) }
+    for o in olds where fm.fileExists(atPath: o.path) { try fm.trashItem(at: o, resultingItemURL: nil) }   // the old one with the same name goes to the Trash
+    for (_, n) in (isDir(root) ? [(root, dstName)] : files) { try fm.moveItem(at: stage.appendingPathComponent(n), to: dir.appendingPathComponent(n)) }
+  } catch { return .failure(.bad(error.localizedDescription)) }
+  return .success((id, c.name))
+}
+
 // ---------- The window ----------
 final class CommunityWindow: NSObject, NSWindowDelegate {
   let window: NSWindow

@@ -311,6 +311,40 @@ with tempfile.TemporaryDirectory() as td:
     rc3, _ = community(base, mine, "--community-install", ids[0])
     check("커뮤니티 — 안 맞는 파일·경로 id·내 폴더는 거절", (rc2, os.path.exists(os.path.join(td, "c2", ids[0])), "../escape" in listed, rc3, os.listdir(os.path.join(mine, ids[0]))), (1, False, False, 1, []))
 
+# a character someone sent you (--install-chara = dropping it on the pet): only the files the loader reads are copied, a folder
+# with the same name is replaced, a single png works, and a zip without a character or with a path outside it is refused
+import struct, zlib, zipfile
+def rgba_png(path, w, h):
+    raw = zlib.compress((b"\0" + b"\x40\x80\xc0\xff" * w) * h, 9)
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", raw) + chunk(b"IEND", b""))
+with tempfile.TemporaryDirectory() as td:
+    ch = os.path.join(td, "charas")
+    def inst(p):
+        r = subprocess.run([BIN, "--install-chara", p], capture_output=True, text=True, timeout=30, env=dict(os.environ, DOTBUDDY_CHARAS=ch))
+        return r.returncode, r.stdout.strip()
+    pack = os.path.join(td, "src", "buddy"); shutil.copytree(os.path.join(HERE, "community", ids[0]), pack)
+    open(os.path.join(pack, "run.sh"), "w").write("echo hi")
+    mo = set(cm.motions())
+    want = sorted(f for f in os.listdir(pack) if f == "chara.json" or (f.endswith(".png") and f[:-4] in mo))
+    z = os.path.join(td, "buddy-share.zip"); subprocess.run(["ditto", "-c", "-k", "--keepParent", pack, z], check=True)
+    r1 = inst(z); got1 = sorted(os.listdir(os.path.join(ch, "buddy")))
+    os.remove(os.path.join(pack, "walk.png"))
+    r2 = inst(pack); got2 = "walk.png" in os.listdir(os.path.join(ch, "buddy"))
+    png = os.path.join(td, "blob.png"); rgba_png(png, 12, 10)
+    r3 = inst(png)
+    os.makedirs(os.path.join(td, "notes")); open(os.path.join(td, "notes", "a.txt"), "w").write("hi")
+    nz = os.path.join(td, "notes.zip"); subprocess.run(["ditto", "-c", "-k", "--keepParent", os.path.join(td, "notes"), nz], check=True)
+    r4 = inst(nz)
+    ez = os.path.join(td, "evil.zip")
+    with zipfile.ZipFile(ez, "w") as zf: zf.write(png, "../evil.png")
+    r5 = inst(ez)
+    loaded = [c["id"] for c in json.loads(community(base, ch, "--charas")[1])["charas"]]
+    check("받은 캐릭터 설치 — zip·폴더·png", (r1, got1 == want, r2[0], got2, r3, "pack:buddy" in loaded, "custom:blob" in loaded),
+          ((0, "pack:buddy"), True, 0, False, (0, "custom:blob"), True, True))
+    check("받은 캐릭터 설치 — 캐릭터 없는 zip·밖을 가리키는 경로는 거절", (r4[0], r5[0], os.path.exists(os.path.join(td, "evil.png")), sorted(os.listdir(ch))),
+          (1, 1, False, ["blob.png", "buddy"]))
+
 if fails:
     print("FAIL\n  " + "\n  ".join(fails))
     sys.exit(1)
