@@ -2,6 +2,10 @@ name: Feature request
 description: Suggest an idea or a new agent integration
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Dot Buddy is a pet you look at. Chat, AI calls, sending input to agents and network features are out of scope; see [What Dot Buddy is for](https://github.com/doldoldol21/dot-buddy/blob/main/CONTRIBUTING.md#what-dot-buddy-is-for).
   - type: textarea
     id: idea
     attributes:

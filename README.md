@@ -214,7 +214,7 @@ The full guide, with every motion name and the `chara.json` format, is in [CHARA
 
 ## Contributing
 
-Bug reports, characters you drew yourself and integrations for more agents are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in [SECURITY.md](SECURITY.md).
+Bug reports, characters you drew yourself and integrations for more agents are welcome. Dot Buddy is a pet to look at, so chat, AI calls and features that send input to your agents are out of scope. See [CONTRIBUTING.md](CONTRIBUTING.md#what-dot-buddy-is-for) before you start on a feature. Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## License and acknowledgements
 

@@ -2,6 +2,28 @@
 
 Thanks for helping. Bug reports, new agent integrations, terminal support and characters you drew yourself are all welcome.
 
+## What Dot Buddy is for
+
+Dot Buddy is a desktop pet you look at. It lives on your screen and tells you, with as little of your attention as possible, whether your agents are working, done or waiting on you. It is not a way to talk to your agents or drive them. Please read this before you start on a feature; a pull request outside it will be closed however well it is made.
+
+Welcome:
+
+- Bug fixes, especially movement, floors, windows and multiple monitors
+- Clearer ways to show what agents are doing (reactions, bubbles, badges)
+- Integrations for more agents, and more terminals for click-to-jump
+- Characters, poses, lines and effects
+- Performance, accessibility and translations
+
+Out of scope:
+
+- Chatting with the pet, or with an agent through it, and any calls to an LLM or AI API
+- Sending anything to an agent: answering its questions, approving tool use, starting or stopping sessions
+- Network features beyond the update check: accounts, sync, analytics, telemetry, remote services
+- Tools unrelated to watching agents: to-do lists, timers, reminders, notes, clipboard, music
+- Reading more of your data than showing session status needs
+
+Not sure whether an idea fits? Open an issue and ask before writing code.
+
 ## Build and run
 
 You need macOS 13+ and the Xcode Command Line Tools (`xcode-select --install`). `python3` is optional; it draws the high-res built-in characters.

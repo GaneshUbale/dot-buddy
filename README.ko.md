@@ -210,7 +210,7 @@ Codex CLI, Gemini CLI, Cursor, opencode, Aider 설정은 [docs/agents.md](docs/a
 
 ## 기여하기
 
-버그 제보, 직접 그린 캐릭터, 다른 에이전트 연동 모두 반가워요. [CONTRIBUTING.md](CONTRIBUTING.md)를 보세요(영어). 보안 문제는 [SECURITY.md](SECURITY.md)대로 비공개로 알려 주세요.
+버그 제보, 직접 그린 캐릭터, 다른 에이전트 연동 모두 반가워요. 도트 친구는 보고 즐기는 펫이라서 채팅, AI 호출, 에이전트에 입력을 보내는 기능은 받지 않아요. 기능을 만들기 전에 [CONTRIBUTING.md](CONTRIBUTING.md#what-dot-buddy-is-for)를 보세요(영어). 보안 문제는 [SECURITY.md](SECURITY.md)대로 비공개로 알려 주세요.
 
 ## 라이선스와 감사
 
