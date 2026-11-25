@@ -24,6 +24,9 @@ final class PetWindow: NSWindow {
   override func order(_ m: NSWindow.OrderingMode, relativeTo n: Int) { PetWindow.orders += 1; orderGen += 1; super.order(m, relativeTo: n) }
   override func orderFrontRegardless() { PetWindow.orders += 1; orderGen += 1; super.orderFrontRegardless() }
   override func accessibilityHitTest(_ point: NSPoint) -> Any? { nil }
+  // AppKit pushes a window whose top would go under the menu bar back down below it. The pet window is taller than the pet (padding above the head),
+  // so a pet standing on a window just below the menu bar was drawn about 30pt lower, inside that window (on Slack's title bar, 2026-11-25). The app places these windows itself
+  override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 }
 final class PetApp: NSApplication {
   override func accessibilityWindows() -> [Any]? { [] }
